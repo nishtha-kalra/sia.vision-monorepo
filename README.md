@@ -1,36 +1,167 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sia.Vision Landing Page
 
-## Getting Started
+A modern, animated landing page for Sia.Vision built with Next.js, React, Tailwind CSS, and Framer Motion.
 
-First, run the development server:
+## 🚀 Tech Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Framework**: Next.js 15.3.2
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **UI Components**: Material-UI (MUI)
+- **Language**: TypeScript
+- **Package Manager**: npm
+- **Code Quality**: ESLint, Prettier
+- **Icons**: Lucide React, Material-UI Icons
+
+## ✨ Features
+
+- **Modern Design**: Clean, professional design with Material Design principles
+- **Responsive**: Fully responsive design that works on all devices
+- **Animated**: Smooth animations and transitions using Framer Motion
+- **Accessible**: Built with accessibility in mind
+- **Performance**: Optimized for fast loading and smooth interactions
+- **Type Safe**: Full TypeScript support for better development experience
+
+## 🏗️ Project Structure
+
+```
+src/
+├── app/
+│   ├── globals.css          # Global styles and custom CSS
+│   ├── layout.tsx           # Root layout component
+│   └── page.tsx             # Home page
+├── components/
+│   ├── navigation/
+│   │   └── Navbar.tsx       # Navigation bar component
+│   ├── hero/
+│   │   ├── HeroSection.tsx  # Main hero section
+│   │   ├── AnimatedStar.tsx # Animated star decoration
+│   │   └── FloatingElements.tsx # Background floating elements
+│   ├── LandingPage.tsx      # Main landing page component
+│   └── index.ts             # Component exports
+├── lib/
+│   └── utils.ts             # Utility functions
+└── types/
+    └── index.ts             # TypeScript type definitions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎨 Design Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Navigation Bar
+- Sticky navigation with backdrop blur effect
+- Smooth animations on scroll
+- Mobile-responsive hamburger menu
+- Active state indicators with smooth transitions
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Hero Section
+- Gradient background with floating elements
+- Animated text reveals
+- Interactive star decorations
+- Material-UI button with hover effects
+- Responsive typography and layout
 
-## Learn More
+### Animations
+- Page load animations
+- Hover effects and micro-interactions
+- Smooth transitions between states
+- Floating background elements
 
-To learn more about Next.js, take a look at the following resources:
+## 🚀 Getting Started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+3. **Open your browser** and navigate to `http://localhost:3000`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📱 Responsive Design
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The landing page is fully responsive and optimized for:
+- **Desktop**: Full-width layout with side-by-side content
+- **Tablet**: Adjusted spacing and typography
+- **Mobile**: Stacked layout with optimized touch targets
+
+## 🎯 Component Architecture
+
+### Modular Design
+- Each component is self-contained and reusable
+- Props-based configuration for flexibility
+- TypeScript interfaces for type safety
+
+### Theme System
+- Custom Material-UI theme with brand colors
+- Consistent spacing and typography
+- Dark mode support ready
+
+## 🔧 Customization
+
+### Colors
+The primary brand colors can be customized in `src/components/LandingPage.tsx`:
+```typescript
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#ea580c', // Orange
+      light: '#fb923c',
+      dark: '#c2410c',
+    },
+    // ...
+  },
+});
+```
+
+### Content
+Update the hero content by modifying the props in `HeroSection`:
+```typescript
+<HeroSection 
+  title="Your Custom Title"
+  subtitle="Your custom subtitle"
+  ctaText="Your CTA"
+  onCtaClick={handleCustomAction}
+/>
+```
+
+## 🚀 Deployment
+
+### Build for production:
+```bash
+npm run build
+```
+
+### Start production server:
+```bash
+npm start
+```
+
+## 📦 Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run type-check` - Run TypeScript type checking
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- Design inspiration from modern web design trends
+- Material Design principles
+- Framer Motion for smooth animations
+- Next.js team for the excellent framework
