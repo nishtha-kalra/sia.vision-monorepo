@@ -59,24 +59,56 @@ const HowItWorksSection: React.FC = () => {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   return (
-    <section className="relative flex flex-col items-center py-24 px-4 w-full bg-white overflow-hidden">
-      {/* Wave and CircularText left */}
-      <div className="absolute left-[71px] top-[118px] w-[259px] h-[72px] max-md:hidden">
+    <section className="relative flex flex-col items-center py-24 px-4 w-full bg-white overflow-hidden max-w-[1440px] mx-auto">
+      {/* Left Wave Pattern - positioned with equal margin from center */}
+      <div className="absolute left-[71px] top-[118px] w-[359px] h-[72px] max-lg:hidden">
         <WavePattern />
       </div>
-      <CircularText className="absolute h-[173px] left-[156px] top-[248px] w-[173px] max-md:hidden" />
-      {/* Headline and subheadline */}
-      <div className="max-w-3xl w-full text-center mx-auto mb-16 relative z-10">
-        <h2 className="text-4xl md:text-5xl font-serif font-bold mb-4 text-stone-900">The New Storytelling Paradigm</h2>
-        <p className="text-lg md:text-xl text-stone-600">Unlock the power of global lore, cultural narratives, and original concepts</p>
+      
+      {/* Left CircularText - responsive positioning under left wave center */}
+      <div className="absolute left-[164px] xl:left-[157px] top-[200px] xl:top-[290px] max-lg:hidden lg:hidden xl:block">
+        <CircularText className="h-[173px] w-[173px]" text="Co Create • O w n • Evolve •" />
       </div>
-      {/* Wave and CircularText right */}
-      <div className="absolute right-[71px] top-[118px] w-[259px] h-[72px] max-md:hidden">
+      
+      {/* Right Wave Pattern - positioned with equal margin from center */}
+      <div className="absolute right-[1px] top-[118px] w-[359px] h-[72px] max-lg:hidden">
         <WavePattern />
       </div>
-      <CircularText className="absolute h-[173px] right-[156px] top-[248px] w-[173px] max-md:hidden" />
-      {/* Cards */}
-      <div className="w-full max-w-5xl relative z-10">
+      
+      {/* Right CircularText - responsive positioning under right wave center */}
+      <div className="absolute right-[94px] xl:right-[87px] top-[200px] xl:top-[290px] max-lg:hidden lg:hidden xl:block">
+        <CircularText className="h-[173px] w-[173px]" text="Modular Story telling • AI • " />
+      </div>
+      
+      {/* Headline and subheadline - responsive positioning */}
+      <div className="
+        absolute top-[110px] max-w-[698px] w-full text-center left-1/2 transform -translate-x-1/2 z-10 px-4
+        max-xl:hidden
+      ">
+        <h2 className="text-5xl md:text-6xl font-serif font-bold mb-4 text-stone-900 leading-tight">The New Storytelling Paradigm</h2>
+        <p className="text-xl md:text-2xl text-stone-600 max-w-[433px] mx-auto">Unlock the power of global lore, cultural narratives, and original concepts</p>
+      </div>
+      
+      {/* iPad view - headline under waves */}
+      <div className="
+        hidden xl:hidden lg:block
+        absolute top-[400px] max-w-[698px] w-full text-center left-1/2 transform -translate-x-1/2 z-10 px-4
+      ">
+        <h2 className="text-4xl lg:text-5xl font-serif font-bold mb-4 text-stone-900 leading-tight">The New Storytelling Paradigm</h2>
+        <p className="text-lg lg:text-xl text-stone-600 max-w-[433px] mx-auto">Unlock the power of global lore, cultural narratives, and original concepts</p>
+      </div>
+      
+      {/* Mobile view - headline at top */}
+      <div className="
+        lg:hidden
+        w-full max-w-[698px] text-center mx-auto mb-16 px-4
+      ">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold mb-4 text-stone-900 leading-tight">The New Storytelling Paradigm</h2>
+        <p className="text-lg sm:text-xl text-stone-600 max-w-[433px] mx-auto">Unlock the power of global lore, cultural narratives, and original concepts</p>
+      </div>
+      
+      {/* Cards - positioned below the header section with responsive margins */}
+      <div className="w-full max-w-5xl relative z-10 mt-[500px] xl:mt-[500px] lg:mt-[540px] max-lg:mt-0">
         <div className="grid grid-cols-2 gap-8 max-md:gap-6 max-sm:grid-cols-1 max-sm:gap-4">
           {FEATURE_CARDS.map((card) => (
             <HowItWorksCard

@@ -2,7 +2,7 @@ import React from 'react';
 
 const WavePattern: React.FC<{ className?: string }> = ({ className }) => (
   <svg
-    width="359"
+    width="259"
     height="72"
     viewBox="0 0 359 72"
     fill="none"

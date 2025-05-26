@@ -1,7 +1,6 @@
 import React from 'react';
 
-const CircularText: React.FC<{ className?: string }> = ({ className }) => {
-  const text = "Lorem ipsum dolor sit amet, consr";
+const CircularText: React.FC<{ className?: string; text: string }> = ({ className, text }) => {
   return (
     <div className={`h-[173px] w-[173px] relative ${className || ''}`}>
       {text.split('').map((char, index) => {
