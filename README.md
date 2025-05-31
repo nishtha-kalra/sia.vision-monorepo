@@ -1,6 +1,6 @@
 # Sia.Vision Landing Page
 
-A modern, animated landing page for Sia.Vision built with Next.js, React, Tailwind CSS, and Framer Motion.
+A modern, animated landing page for Sia.Vision built with Next.js, React, Tailwind CSS, and Framer Motion. Features a comprehensive storytelling platform showcase with interactive sections for creators, builders, and distributors.
 
 ## 🚀 Tech Stack
 
@@ -15,12 +15,13 @@ A modern, animated landing page for Sia.Vision built with Next.js, React, Tailwi
 
 ## ✨ Features
 
-- **Modern Design**: Clean, professional design with Material Design principles
-- **Responsive**: Fully responsive design that works on all devices
-- **Animated**: Smooth animations and transitions using Framer Motion
-- **Accessible**: Built with accessibility in mind
+- **Modern Design**: Clean, professional design with Material Design principles and Story Protocol branding
+- **Responsive**: Fully responsive design optimized for desktop, tablet, and mobile devices
+- **Animated**: Smooth animations and transitions using Framer Motion with hover effects
+- **Accessible**: Built with accessibility in mind including ARIA labels and semantic HTML
 - **Performance**: Optimized for fast loading and smooth interactions
 - **Type Safe**: Full TypeScript support for better development experience
+- **Smooth Navigation**: Smooth scrolling navigation between sections with active state management
 
 ## 🏗️ Project Structure
 
@@ -32,11 +33,22 @@ src/
 │   └── page.tsx             # Home page
 ├── components/
 │   ├── navigation/
-│   │   └── Navbar.tsx       # Navigation bar component
+│   │   └── Navbar.tsx       # Navigation bar with smooth scrolling
 │   ├── hero/
-│   │   ├── HeroSection.tsx  # Main hero section
-│   │   ├── AnimatedStar.tsx # Animated star decoration
-│   │   └── FloatingElements.tsx # Background floating elements
+│   │   └── HeroSection.tsx  # Main hero section
+│   ├── how-it-works/
+│   │   ├── HowItWorksSection.tsx    # How it works main section
+│   │   ├── HowItWorksCard.tsx       # Feature cards component
+│   │   ├── WavePattern.tsx          # Decorative wave SVG patterns
+│   │   ├── CircularText.tsx         # Animated circular text elements
+│   │   └── index.ts                 # How it works exports
+│   ├── flywheel/
+│   │   ├── FlywheelSection.tsx      # Main flywheel section
+│   │   ├── StoryCard.tsx            # Story card components
+│   │   ├── StoryCardImage.tsx       # Card image component
+│   │   ├── StoryCardContent.tsx     # Card content component
+│   │   ├── DecorativeShapes.tsx     # SVG decorative elements
+│   │   └── index.ts                 # Flywheel exports
 │   ├── LandingPage.tsx      # Main landing page component
 │   └── index.ts             # Component exports
 ├── lib/
@@ -49,22 +61,40 @@ src/
 
 ### Navigation Bar
 - Sticky navigation with backdrop blur effect
-- Smooth animations on scroll
-- Mobile-responsive hamburger menu
-- Active state indicators with smooth transitions
+- Smooth scrolling to section anchors
+- Mobile-responsive hamburger menu with slide-out panel
+- Active state indicators with Creative Tech color scheme
+- Auto-closing mobile menu after navigation
 
 ### Hero Section
 - Gradient background with floating elements
 - Animated text reveals
-- Interactive star decorations
-- Material-UI button with hover effects
+- Interactive elements with hover effects
+- Material-UI button with smooth transitions
 - Responsive typography and layout
 
+### How It Works Section
+- Four feature cards showcasing Story Protocol capabilities
+- Decorative wave patterns and circular text elements
+- Responsive grid layout (2x2 desktop, stacked mobile)
+- Hover animations and interactive states
+- SVG image support with fallback handling
+
+### Flywheel Section
+- Three-stage storytelling process: Create, Build, Distribute
+- Diagonal card positioning on desktop with decorative shapes
+- Responsive layouts:
+  - **Desktop (xl+)**: Diagonal positioning with decorative elements
+  - **Tablet (md-xl)**: Grid layout with Create on top, Build/Distribute side-by-side
+  - **Mobile (<md)**: Stacked vertical cards
+- Smooth hover animations and transitions
+- Story Protocol integration messaging
+
 ### Animations
-- Page load animations
-- Hover effects and micro-interactions
-- Smooth transitions between states
-- Floating background elements
+- Page load animations with staggered reveals
+- Card hover effects and micro-interactions
+- Smooth transitions between responsive breakpoints
+- Floating background elements and decorative shapes
 
 ## 🚀 Getting Started
 
@@ -83,49 +113,75 @@ src/
 ## 📱 Responsive Design
 
 The landing page is fully responsive and optimized for:
-- **Desktop**: Full-width layout with side-by-side content
-- **Tablet**: Adjusted spacing and typography
-- **Mobile**: Stacked layout with optimized touch targets
+- **Desktop (xl+)**: Full diagonal layout with decorative elements
+- **Tablet (md-xl)**: Grid-based layouts with centered content
+- **Mobile (<md)**: Stacked layouts with optimized touch targets and spacing
+
+### Breakpoint Strategy
+- Uses Tailwind CSS breakpoints: `sm`, `md`, `lg`, `xl`
+- Custom responsive utilities for complex layouts
+- Conditional rendering of decorative elements
+- Optimized touch targets for mobile interactions
 
 ## 🎯 Component Architecture
 
 ### Modular Design
-- Each component is self-contained and reusable
+- Each section is self-contained and reusable
+- Shared components for cards, decorative elements, and patterns
 - Props-based configuration for flexibility
 - TypeScript interfaces for type safety
 
 ### Theme System
-- Custom Material-UI theme with brand colors
-- Consistent spacing and typography
-- Dark mode support ready
+- Creative Tech color palette throughout
+- Consistent spacing and typography scales
+- Hover states and interactive feedback
+- Material Design principles for accessibility
 
 ## 🔧 Customization
 
 ### Colors
-The primary brand colors can be customized in `src/components/LandingPage.tsx`:
+The Creative Tech brand colors are defined throughout the components:
 ```typescript
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#ea580c', // Orange
-      light: '#fb923c',
-      dark: '#c2410c',
-    },
-    // ...
-  },
-});
+// Primary colors used
+- creative-tech-primary: Orange accent (#ea580c)
+- creative-tech-surface: Light background
+- creative-tech-on-surface: Dark text
+- creative-tech-secondary: Secondary accent
 ```
 
 ### Content
-Update the hero content by modifying the props in `HeroSection`:
+Update section content by modifying the data arrays in each section:
 ```typescript
-<HeroSection 
-  title="Your Custom Title"
-  subtitle="Your custom subtitle"
-  ctaText="Your CTA"
-  onCtaClick={handleCustomAction}
-/>
+// HowItWorksSection.tsx
+const FEATURE_CARDS = [
+  // Add or modify feature cards
+];
+
+// FlywheelSection.tsx  
+const FLYWHEEL_CARDS = [
+  // Add or modify flywheel stages
+];
 ```
+
+### Navigation
+Add new navigation items in `Navbar.tsx`:
+```typescript
+const navigationItems: NavigationItem[] = [
+  { label: "New Section", href: "#new-section" },
+  // ...
+];
+```
+
+## 🖼️ Assets
+
+The project uses local SVG assets for optimal performance:
+- `/create-flywheel.svg` - Create stage illustration
+- `/build-flywheel.svg` - Build stage illustration  
+- `/distribute-flywheel.svg` - Distribute stage illustration
+- `/beyond-islolated-narratives.svg` - Feature illustration
+- `/empowering-creators.svg` - Feature illustration
+- `/adapt.svg` - Feature illustration
+- `/reimagined-narratives.svg` - Feature illustration
 
 ## 🚀 Deployment
 
@@ -161,7 +217,8 @@ This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgments
 
-- Design inspiration from modern web design trends
-- Material Design principles
+- Story Protocol for blockchain-based IP ownership concepts
+- Material Design principles for accessibility guidelines
 - Framer Motion for smooth animations
 - Next.js team for the excellent framework
+- Tailwind CSS for responsive design utilities
