@@ -6,15 +6,35 @@ import { NavigationItem } from '@/types';
 
 const navigationItems: NavigationItem[] = [
   { label: "Home", href: "#", isActive: true },
-  { label: "How it works", href: "#" },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Flywheel", href: "#flywheel" },
   { label: "Features", href: "#" },
   { label: "For You", href: "#" },
   { label: "Genesis IP", href: "#" },
   { label: "About Us", href: "#" },
 ];
 
+const scrollToSection = (href: string) => {
+  if (href === "#") return;
+  
+  const sectionId = href.replace("#", "");
+  const element = document.getElementById(sectionId);
+  
+  if (element) {
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+};
+
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleNavClick = (href: string) => {
+    scrollToSection(href);
+    setMobileMenuOpen(false); // Close mobile menu if open
+  };
 
   return (
     <nav className="bg-creative-tech-surface text-creative-tech-on-surface flex justify-between items-center px-6 py-4 mx-auto max-w-7xl lg:px-8 shadow-sm font-sans">
@@ -44,10 +64,10 @@ export function Navbar() {
       {/* Desktop Navigation Links - Hidden on small screens, visible on large */}
       <div className="hidden lg:flex lg:gap-x-8 items-center"> {/* Ensures this block is hidden on small screens and flex on large screens*/}
         {navigationItems.map((item) => (
-          <a
+          <button
             key={item.label}
-            href={item.href}
-            className={`text-sm font-medium transition-colors duration-200
+            onClick={() => handleNavClick(item.href)}
+            className={`text-sm font-medium transition-colors duration-200 cursor-pointer
               ${
                 item.isActive
                   ? 'text-creative-tech-primary' // Active link color
@@ -55,7 +75,7 @@ export function Navbar() {
               }`}
           >
             {item.label}
-          </a>
+          </button>
         ))}
       </div>
       
@@ -93,11 +113,10 @@ export function Navbar() {
               <div className="-my-6 divide-y divide-creative-tech-on-surface/10">
                 <div className="space-y-2 py-6">
                   {navigationItems.map((item) => (
-                    <a
+                    <button
                       key={item.label}
-                      href={item.href}
-                      onClick={() => setMobileMenuOpen(false)} // Close menu on click
-                      className={`block rounded-lg px-3 py-2 text-base font-semibold leading-7 transition-colors
+                      onClick={() => handleNavClick(item.href)}
+                      className={`block w-full text-left rounded-lg px-3 py-2 text-base font-semibold leading-7 transition-colors
                         ${
                           item.isActive
                             ? 'text-creative-tech-primary bg-creative-tech-primary/10'
@@ -105,7 +124,7 @@ export function Navbar() {
                         }`}
                     >
                       {item.label}
-                    </a>
+                    </button>
                   ))}
                 </div>
                 <div className="py-6">

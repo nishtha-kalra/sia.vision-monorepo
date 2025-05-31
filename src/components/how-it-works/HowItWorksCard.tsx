@@ -3,7 +3,8 @@ import * as React from "react";
 interface HowItWorksCardProps {
   title: string;
   description: React.ReactNode;
-  iconPath: string;
+  iconPath?: string;
+  imageSrc?: string;
   isHovered: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -13,6 +14,7 @@ const HowItWorksCard: React.FC<HowItWorksCardProps> = ({
   title,
   description,
   iconPath,
+  imageSrc,
   isHovered,
   onMouseEnter,
   onMouseLeave,
@@ -29,10 +31,18 @@ const HowItWorksCard: React.FC<HowItWorksCardProps> = ({
           : "0 2px 8px rgba(0,0,0,0.04)",
       }}
     >
-      <div className="flex justify-center items-center mb-6 rounded-full bg-stone-100 h-14 w-14">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-stone-900">
-          <path d={iconPath} />
-        </svg>
+      <div className="flex justify-center items-center mb-6 rounded-xl bg-stone-100 h-24 w-24">
+        {imageSrc ? (
+          <img 
+            src={imageSrc} 
+            alt={title}
+            className="w-24 h-24 object-contain"
+          />
+        ) : (
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-stone-900">
+            <path d={iconPath} />
+          </svg>
+        )}
       </div>
       <h3 className="mb-4 text-lg font-semibold leading-none text-stone-900">
         {title}
