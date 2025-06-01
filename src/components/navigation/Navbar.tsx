@@ -8,10 +8,9 @@ const navigationItems: NavigationItem[] = [
   { label: "Home", href: "#", isActive: true },
   { label: "How it works", href: "#how-it-works" },
   { label: "Flywheel", href: "#flywheel" },
-  { label: "Features", href: "#" },
-  { label: "For You", href: "#" },
-  { label: "Genesis IP", href: "#" },
-  { label: "About Us", href: "#" },
+  { label: "For You", href: "#for-you" },
+  { label: "Genesis IP", href: "#meet-sia" },
+  { label: "Contact", href: "#join-ecosystem" },
 ];
 
 const scrollToSection = (href: string) => {

@@ -1,25 +1,24 @@
 # Sia.Vision Landing Page
 
-A modern, animated landing page for Sia.Vision built with Next.js, React, Tailwind CSS, and Framer Motion. Features a comprehensive storytelling platform showcase with interactive sections for creators, builders, and distributors.
+A modern, animated landing page for Sia.Vision built with Next.js, React, Tailwind CSS, and featuring comprehensive storytelling platform showcase with interactive sections for creators, builders, and distributors.
 
 ## 🚀 Tech Stack
 
 - **Framework**: Next.js 15.3.2
 - **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **UI Components**: Material-UI (MUI)
 - **Language**: TypeScript
 - **Package Manager**: npm
 - **Code Quality**: ESLint, Prettier
-- **Icons**: Lucide React, Material-UI Icons
+- **Icons**: Lucide React
+- **Media**: Next.js Image optimization, HTML5 Video
 
 ## ✨ Features
 
-- **Modern Design**: Clean, professional design with Material Design principles and Story Protocol branding
+- **Modern Design**: Clean, professional design with Creative Tech color scheme and consistent branding
 - **Responsive**: Fully responsive design optimized for desktop, tablet, and mobile devices
-- **Animated**: Smooth animations and transitions using Framer Motion with hover effects
+- **Interactive Videos**: Hover-to-unmute video functionality with seamless playback
 - **Accessible**: Built with accessibility in mind including ARIA labels and semantic HTML
-- **Performance**: Optimized for fast loading and smooth interactions
+- **Performance**: Optimized for fast loading and smooth interactions with proper image/video optimization
 - **Type Safe**: Full TypeScript support for better development experience
 - **Smooth Navigation**: Smooth scrolling navigation between sections with active state management
 
@@ -49,6 +48,14 @@ src/
 │   │   ├── StoryCardContent.tsx     # Card content component
 │   │   ├── DecorativeShapes.tsx     # SVG decorative elements
 │   │   └── index.ts                 # Flywheel exports
+│   ├── stakeholder-benefits/
+│   │   ├── StakeholderBenefitsSection.tsx  # Main benefits section
+│   │   └── StakeholderCard.tsx            # Individual benefit cards
+│   ├── meet-sia/
+│   │   └── MeetSiaSection.tsx       # Genesis IP showcase section
+│   ├── contact-form/
+│   │   └── ContactFormSection.tsx   # Contact form with inquiry types
+│   ├── Footer.tsx           # Footer with social media and contact
 │   ├── LandingPage.tsx      # Main landing page component
 │   └── index.ts             # Component exports
 ├── lib/
@@ -70,7 +77,6 @@ src/
 - Gradient background with floating elements
 - Animated text reveals
 - Interactive elements with hover effects
-- Material-UI button with smooth transitions
 - Responsive typography and layout
 
 ### How It Works Section
@@ -90,11 +96,64 @@ src/
 - Smooth hover animations and transitions
 - Story Protocol integration messaging
 
-### Animations
-- Page load animations with staggered reveals
-- Card hover effects and micro-interactions
-- Smooth transitions between responsive breakpoints
-- Floating background elements and decorative shapes
+### Stakeholder Benefits Section ("For You")
+- Three stakeholder categories: Visionaries, Co-Creators, Developers
+- Light cards on dark background for optimal contrast
+- Interactive hover effects and smooth animations
+- SVG illustrations for each stakeholder type
+- Call-to-action buttons with engaging copy
+- Responsive three-column grid (desktop) to single-column stack (mobile)
+
+### Meet Sia Section (Genesis IP Showcase)
+- **Rich Character Lore**: Three-card introduction covering Character, Genesis, and Vision
+- **Interactive Video Experience**: 
+  - Two videos showcasing SIA's universe and journey
+  - Vertical stacking to avoid attention division
+  - Hover-to-unmute functionality for seamless audio control
+  - Auto-playing, looping videos with sound indicators
+- **Immersive Design**: 
+  - Terracotta/ochre gradient background matching reference design
+  - Decorative dotted patterns and large circular elements
+  - Proper video spacing with connecting star element
+- **Genesis IP Storytelling**: 
+  - Detailed character background (mystical visualization bracelet)
+  - Story origins in Varanasi's sacred ghats
+  - Vision for collaborative, evolving "Living Storyworld"
+  - Indian heritage bridging to global adventures
+
+### Contact Form Section
+- **Professional Contact Experience**:
+  - Headline: "Let's Build the Future of Story, Together."
+  - Form fields: Name, Email, Inquiry Type dropdown, Message
+  - Six inquiry type options for targeted communication
+  - Gold container design using creative-tech-secondary color
+- **Form Functionality**:
+  - Client-side validation with required field handling
+  - Submit status messages (success/error states)
+  - Form reset after successful submission
+  - Placeholder for backend integration
+  - Responsive grid layout for name/email fields
+- **User Experience**:
+  - Encouraging copy emphasizing collaboration
+  - Clear call-to-action with "Send Message" button
+  - Professional styling with focus states
+  - Error handling with fallback contact email
+
+### Footer
+- **Contact Information**:
+  - Primary contact email: connect@sia.vision with mailto link
+  - Branded SIA logo with circular icon design
+  - "Get in touch" and "Follow us" sections
+- **Social Media Integration**:
+  - X (Twitter) icon with hover effects
+  - Instagram icon with standard design
+  - Discord icon (hidden for future activation)
+  - Placeholder URLs ready for real social media accounts
+- **Brand Elements**:
+  - Creative Tech color scheme consistency
+  - Copyright notice with year and brand message
+  - "Powered by Story Protocol" attribution
+  - Responsive layout with proper mobile stacking
 
 ## 🚀 Getting Started
 
@@ -135,18 +194,26 @@ The landing page is fully responsive and optimized for:
 - Creative Tech color palette throughout
 - Consistent spacing and typography scales
 - Hover states and interactive feedback
-- Material Design principles for accessibility
+- Accessibility-first design principles
 
 ## 🔧 Customization
 
 ### Colors
-The Creative Tech brand colors are defined throughout the components:
+The Creative Tech brand colors are defined in `tailwind.config.js`:
 ```typescript
-// Primary colors used
-- creative-tech-primary: Orange accent (#ea580c)
-- creative-tech-surface: Light background
-- creative-tech-on-surface: Dark text
-- creative-tech-secondary: Secondary accent
+colors: {
+  'creative-tech-primary': '#3A86FF',     // Vibrant, trustworthy Blue
+  'creative-tech-secondary': '#FFAB00',   // Energetic, creative Orange/Mango
+  'creative-tech-accent': '#48D8D0',      // Bright Teal/Mint
+  'creative-tech-surface': '#F8F9FA',     // Light Grey / Off-White
+  'creative-tech-on-surface': '#1c1b1f',  // Dark Grey/Near Black
+  'brand-orange': {
+    '300': '#EFB36D',
+    '400': '#EFAC64', 
+    '500': '#E99F4E',
+    '600': '#FE6E06',
+  },
+}
 ```
 
 ### Content
@@ -161,27 +228,51 @@ const FEATURE_CARDS = [
 const FLYWHEEL_CARDS = [
   // Add or modify flywheel stages
 ];
+
+// StakeholderBenefitsSection.tsx
+const STAKEHOLDER_CARDS = [
+  // Add or modify stakeholder types
+];
 ```
 
 ### Navigation
 Add new navigation items in `Navbar.tsx`:
 ```typescript
 const navigationItems: NavigationItem[] = [
-  { label: "New Section", href: "#new-section" },
-  // ...
+  { label: "Home", href: "#", isActive: true },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Flywheel", href: "#flywheel" },
+  { label: "For You", href: "#for-you" },
+  { label: "Genesis IP", href: "#meet-sia" },
+  { label: "Contact", href: "#join-ecosystem" },
 ];
 ```
 
 ## 🖼️ Assets
 
-The project uses local SVG assets for optimal performance:
+The project uses optimized local assets for performance:
+
+### SVG Illustrations
+- `/for-you-1.svg` - Visionaries & IP Originators
+- `/for-you-2.svg` - Co-Creators & Builders  
+- `/for-you-3.svg` - Developers & Distributors
 - `/create-flywheel.svg` - Create stage illustration
 - `/build-flywheel.svg` - Build stage illustration  
 - `/distribute-flywheel.svg` - Distribute stage illustration
-- `/beyond-islolated-narratives.svg` - Feature illustration
-- `/empowering-creators.svg` - Feature illustration
-- `/adapt.svg` - Feature illustration
-- `/reimagined-narratives.svg` - Feature illustration
+- Various feature illustrations for How It Works section
+
+### Video Content
+- `/sia-a-universe-reimagined.mp4` - SIA Universe Teaser
+- `/sia-journey_begins.mp4` - SIA Journey Origins
+
+## 🎬 Video Implementation
+
+### Best Practices Used
+- **Performance**: Videos only auto-play when in viewport
+- **User Control**: Hover-to-unmute functionality
+- **Accessibility**: Proper video controls and fallback content
+- **Mobile Optimization**: `playsInline` attribute for iOS compatibility
+- **SEO**: Semantic HTML structure with descriptive content
 
 ## 🚀 Deployment
 
@@ -218,7 +309,6 @@ This project is licensed under the MIT License.
 ## 🙏 Acknowledgments
 
 - Story Protocol for blockchain-based IP ownership concepts
-- Material Design principles for accessibility guidelines
-- Framer Motion for smooth animations
 - Next.js team for the excellent framework
 - Tailwind CSS for responsive design utilities
+- Indian cultural heritage for SIA's rich narrative foundation
