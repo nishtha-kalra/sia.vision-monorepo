@@ -1,12 +1,32 @@
 "use client";
 import * as React from "react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const MeetSiaSection: React.FC = () => {
   const [video1Muted, setVideo1Muted] = useState(true);
   const [video2Muted, setVideo2Muted] = useState(true);
   const video1Ref = useRef<HTMLVideoElement>(null);
   const video2Ref = useRef<HTMLVideoElement>(null);
+
+  // Auto-start videos when component mounts
+  useEffect(() => {
+    const startVideos = async () => {
+      try {
+        if (video1Ref.current) {
+          video1Ref.current.muted = true;
+          await video1Ref.current.play();
+        }
+        if (video2Ref.current) {
+          video2Ref.current.muted = true;
+          await video2Ref.current.play();
+        }
+      } catch (error) {
+        console.log("Autoplay prevented by browser:", error);
+      }
+    };
+
+    startVideos();
+  }, []);
 
   const handleVideoHover = (videoNumber: number, isHovering: boolean) => {
     if (videoNumber === 1 && video1Ref.current) {
@@ -15,9 +35,9 @@ const MeetSiaSection: React.FC = () => {
         video1Ref.current.muted = false;
         setVideo1Muted(false);
       } else {
-        video1Ref.current.pause();
         video1Ref.current.muted = true;
         setVideo1Muted(true);
+        // Keep playing but muted
       }
     } else if (videoNumber === 2 && video2Ref.current) {
       if (isHovering) {
@@ -25,9 +45,9 @@ const MeetSiaSection: React.FC = () => {
         video2Ref.current.muted = false;
         setVideo2Muted(false);
       } else {
-        video2Ref.current.pause();
         video2Ref.current.muted = true;
         setVideo2Muted(true);
+        // Keep playing but muted
       }
     }
   };
@@ -148,8 +168,9 @@ const MeetSiaSection: React.FC = () => {
               >
                 <video
                   ref={video1Ref}
+                  autoPlay
                   loop
-                  muted={video1Muted}
+                  muted
                   playsInline
                   className="w-full h-64 md:h-96 object-cover"
                 >
@@ -199,8 +220,9 @@ const MeetSiaSection: React.FC = () => {
               >
                 <video
                   ref={video2Ref}
+                  autoPlay
                   loop
-                  muted={video2Muted}
+                  muted
                   playsInline
                   className="w-full h-64 md:h-96 object-cover"
                 >
