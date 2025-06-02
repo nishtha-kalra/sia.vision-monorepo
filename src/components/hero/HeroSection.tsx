@@ -1,56 +1,65 @@
 'use client';
 import React from 'react';
-import { HeroShape } from './HeroShape';
 import { FontCircle } from './FontCircle';
 import { SoftStar } from './SoftStar';
 import { HeroContent } from './HeroContent';
 
 export function HeroSection() {
   return (
-    <section className="overflow-hidden relative w-full bg-creative-tech-surface min-h-[950px] max-lg:min-h-screen max-sm:min-h-[900px]">
-      {/* Orange background left half */}
-      <div className="absolute top-0 left-0 w-full bg-creative-tech-secondary h-full z-0" />
-      {/* Curved white shape on right - hide on tablet and mobile */}
-      <div className="max-lg:hidden">
-        <HeroShape />
-      </div>
-      {/* Content area with absolute star */}
-      <div className="absolute h-[600px] left-[150px] top-[123px] w-[663px]
-        max-xl:left-[100px] max-xl:w-[600px]
-        max-lg:left-[50%] max-lg:transform max-lg:-translate-x-1/2 max-lg:top-[80px] max-lg:w-[90%] max-lg:text-center
-        max-sm:h-auto max-sm:left-[50%] max-sm:top-[60px] max-sm:w-[90%] max-sm:text-center 
-        z-20">
-        {/* Star + circle absolutely positioned above headline - responsive */}
-        <div className="absolute top-0 h-[165px] w-[165px] 
-          left-[50%] transform -translate-x-1/2
-          max-xl:h-[140px] max-xl:w-[140px]
-          max-lg:h-[120px] max-lg:w-[120px]
-          max-sm:relative max-sm:left-0 max-sm:mx-auto max-sm:mt-0 max-sm:mb-10 max-sm:transform-none max-sm:h-[100px] max-sm:w-[100px]">
-          <FontCircle />
-          <SoftStar />
-        </div>
-        <HeroContent />
-      </div>
-      {/* Hero Illustration - desktop only */}
-      <img
-        src="/hero.svg"
-        alt="SIA Character Illustration"
-        className="absolute 
-          h-[825px] w-[651px] left-[850px] top-[135px]
-          max-xl:h-[750px] max-xl:w-[590px] max-xl:left-[800px]
-          max-lg:hidden
-          z-30"
-      />
-      {/* Mobile/Tablet Illustration - below content, positioned after content */}
-      <div className="hidden max-lg:flex max-lg:flex-col max-lg:items-center max-lg:justify-start relative z-30 pt-[600px] max-md:pt-[550px] max-sm:pt-[520px] pb-1 max-sm:pb-0">
-        <img
-          src="/hero.svg"
-          alt="SIA Character Illustration"
-          className="mx-auto block
-            h-[150px] w-[120px]
-            max-md:h-[140px] max-md:w-[115px]
-            max-sm:h-[130px] max-sm:w-[105px]"
+    <section className="overflow-hidden relative w-full bg-hero-blue-900 min-h-[950px] max-lg:min-h-screen max-sm:min-h-[900px]">
+      {/* Dark vibrant blue gradient background */}
+      <div className="absolute inset-0 bg-blue-gradient z-0" />
+      
+      {/* Blue glow effect overlay */}
+      <div className="absolute inset-0 bg-blue-glow opacity-20 z-5" />
+      
+      {/* Video positioned as background element - desktop (larger and more visible) */}
+      <div className="absolute top-0 right-0 w-1/2 h-full overflow-hidden max-lg:hidden z-10 rounded-l-3xl">
+        <video
+          src="/sia.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+            min-w-full min-h-full w-auto h-auto object-cover opacity-85"
+          aria-label="SIA Animation"
         />
+        {/* Reduced overlay for better video visibility */}
+        <div className="absolute inset-0 bg-gradient-to-l from-transparent via-hero-blue-700/10 to-hero-blue-900/30 z-20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-hero-blue-900/40 via-transparent to-transparent z-25" />
+      </div>
+
+      {/* Content area with enhanced positioning */}
+      <div className="relative z-30 flex items-center justify-start min-h-[950px] px-8 lg:px-16">
+        <div className="max-w-2xl lg:max-w-3xl">
+          {/* Star + circle with blue glow effect */}
+          <div className="relative mb-8 flex justify-center lg:justify-start">
+            <div className="h-[120px] w-[120px] max-lg:h-[100px] max-lg:w-[100px] relative">
+              {/* Blue glow behind star */}
+              <div className="absolute inset-0 bg-hero-blue-500/30 rounded-full blur-xl scale-150"></div>
+              <FontCircle />
+              <SoftStar />
+            </div>
+          </div>
+          <HeroContent />
+        </div>
+      </div>
+
+      {/* Mobile/Tablet Video - positioned as background (larger) */}
+      <div className="lg:hidden absolute inset-0 z-5">
+        <video
+          src="/sia.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+            min-w-full min-h-full w-auto h-auto object-cover opacity-70"
+          aria-label="SIA Animation"
+        />
+        {/* Reduced mobile overlay for better video visibility */}
+        <div className="absolute inset-0 bg-blue-gradient opacity-50 z-10" />
       </div>
     </section>
   );

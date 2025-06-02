@@ -9,8 +9,8 @@ export const DecorativeShapes: React.FC = () => {
         viewBox="0 0 1212 871"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="shapes-decor absolute left-[142px] top-[91px]"
-        style={{ width: "1210px", height: "867px", flexShrink: 0 }}
+        className="shapes-decor absolute left-[100px] top-[480px]"
+        style={{ width: "800px", height: "400px", flexShrink: 0, opacity: 0.25 }}
       >
         <path
           d="M358 2C375.756 2 375.756 20 393.512 20C411.269 20 411.269 2 429.025 2C446.781 2 446.781 20 464.496 20C482.253 20 482.253 2 499.967 2C517.723 2 517.723 20 535.438 20C553.194 20 553.194 2 570.949 2C588.706 2 588.706 20 606.463 20C624.218 20 624.218 2 641.975 2C659.731 2 659.731 20 677.488 20C695.243 20 695.243 2 713 2"

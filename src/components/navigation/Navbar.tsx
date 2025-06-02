@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Menu, Search, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { NavigationItem } from '@/types';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -63,24 +63,24 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-creative-tech-surface text-creative-tech-on-surface flex justify-between items-center px-6 py-4 mx-auto max-w-7xl lg:px-8 shadow-sm font-sans">
-      {/* Logo - Updated to match image */}
+    <nav className="bg-gray-50/95 backdrop-blur-md text-gray-900 flex justify-between items-center px-6 py-4 mx-auto max-w-7xl lg:px-8 shadow-lg border-b border-gray-200 font-sans">
+      {/* Logo - Off-white theme with blue accents */}
       <div className="flex lg:flex-1 items-center">
-        <Link href="/" className="-m-1.5 p-1.5 flex items-center space-x-2">
-          {/* SIA Circular Icon Part */}
-          <div className="h-9 w-9 bg-creative-tech-secondary rounded-full flex items-center justify-center text-white font-bold text-[10px] leading-none">
+        <Link href="/" className="-m-1.5 p-1.5 flex items-center space-x-2 group">
+          {/* SIA Circular Icon Part - Keep blue gradient */}
+          <div className="h-9 w-9 bg-gradient-to-br from-hero-blue-500 to-hero-blue-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] leading-none shadow-lg shadow-hero-blue-500/30 group-hover:shadow-hero-blue-500/50 transition-all duration-300">
             SIA
           </div>
           {/* SIA Text Part */}
-          <h1 className="text-2xl sm:text-3xl font-bold text-creative-tech-on-surface font-serif">SIA</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 font-serif group-hover:text-hero-blue-600 transition-colors duration-300">SIA</h1>
         </Link>
       </div>
 
       {/* Mobile Menu Toggle Button - Only on small screens */}
-      <div className="flex lg:hidden"> {/* Ensures this block is hidden on large screens */}
+      <div className="flex lg:hidden">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-creative-tech-on-surface/80 hover:text-creative-tech-primary"
+          className="p-2 text-gray-600 hover:text-hero-blue-600 transition-colors duration-300"
           aria-label="Toggle mobile menu"
         >
           {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -88,7 +88,7 @@ export function Navbar() {
       </div>
 
       {/* Desktop Navigation Links - Hidden on small screens, visible on large */}
-      <div className="hidden lg:flex lg:gap-x-8 items-center"> {/* Ensures this block is hidden on small screens and flex on large screens*/}
+      <div className="hidden lg:flex lg:gap-x-8 items-center">
         {navigationItems.map((item) => {
           const isExternalLink = item.href.startsWith("/") && item.href !== "/";
           const isActive = isActiveItem(item);
@@ -98,14 +98,15 @@ export function Navbar() {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`text-sm font-medium transition-colors duration-200 cursor-pointer
+                className={`text-sm font-medium transition-all duration-300 cursor-pointer relative group
                   ${
                     isActive
-                      ? 'text-creative-tech-primary' // Active link color
-                      : 'text-creative-tech-on-surface hover:text-creative-tech-primary'
+                      ? 'text-hero-blue-600' // Active link color
+                      : 'text-gray-700 hover:text-hero-blue-600'
                   }`}
               >
                 {item.label}
+                <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-hero-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
               </Link>
             );
           }
@@ -114,43 +115,37 @@ export function Navbar() {
             <button
               key={item.label}
               onClick={() => handleNavClick(item.href, pathname, router, setMobileMenuOpen)}
-              className={`text-sm font-medium transition-colors duration-200 cursor-pointer
+              className={`text-sm font-medium transition-all duration-300 cursor-pointer relative group
                 ${
                   isActive
-                    ? 'text-creative-tech-primary' // Active link color
-                    : 'text-creative-tech-on-surface hover:text-creative-tech-primary'
+                    ? 'text-hero-blue-600' // Active link color
+                    : 'text-gray-700 hover:text-hero-blue-600'
                 }`}
             >
               {item.label}
+              <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-hero-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
             </button>
           );
         })}
       </div>
-      
-      {/* Search button - Hidden on small screens, part of desktop nav flow */}
-      <div className="hidden lg:flex lg:flex-initial lg:justify-end ml-8"> {/* Added ml-8 for spacing */}
-        <button className="p-2 text-creative-tech-on-surface/70 hover:text-creative-tech-primary transition-colors" aria-label="Search">
-          <Search className="h-5 w-5" />
-        </button>
-      </div>
 
       {/* Mobile Menu Panel */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50" aria-modal="true"> {/* Ensures panel is hidden on large screens */}
+        <div className="lg:hidden fixed inset-0 z-50" aria-modal="true">
           {/* Overlay */}
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-creative-tech-surface shadow-xl">
-            <div className="flex items-center justify-between p-6 border-b border-creative-tech-on-surface/10">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-gray-50/95 backdrop-blur-md shadow-2xl border-l border-gray-200">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
               {/* Mobile Menu Logo */}
               <Link href="/" className="-m-1.5 p-1.5 flex items-center space-x-2">
-                <div className="h-8 w-8 bg-creative-tech-secondary rounded-full flex items-center justify-center text-white font-bold text-[10px] leading-none">
+                <div className="h-8 w-8 bg-gradient-to-br from-hero-blue-500 to-hero-blue-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] leading-none shadow-lg shadow-hero-blue-500/30">
                   SIA
                 </div>
-                <h1 className="text-xl font-bold text-creative-tech-on-surface font-serif">SIA</h1>
+                <h1 className="text-xl font-bold text-gray-900 font-serif">SIA</h1>
               </Link>
               <button
                 type="button"
-                className="-m-2.5 rounded-md p-2.5 text-creative-tech-on-surface/80 hover:text-creative-tech-primary"
+                className="-m-2.5 rounded-md p-2.5 text-gray-600 hover:text-hero-blue-600 transition-colors duration-300"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <span className="sr-only">Close menu</span>
@@ -158,7 +153,7 @@ export function Navbar() {
               </button>
             </div>
             <div className="mt-6 flow-root px-6">
-              <div className="-my-6 divide-y divide-creative-tech-on-surface/10">
+              <div className="-my-6 divide-y divide-gray-200">
                 <div className="space-y-2 py-6">
                   {navigationItems.map((item) => {
                     const isExternalLink = item.href.startsWith("/") && item.href !== "/";
@@ -170,11 +165,11 @@ export function Navbar() {
                           key={item.label}
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`block w-full text-left rounded-lg px-3 py-2 text-base font-semibold leading-7 transition-colors
+                          className={`block w-full text-left rounded-lg px-3 py-2 text-base font-semibold leading-7 transition-all duration-300
                             ${
                               isActive
-                                ? 'text-creative-tech-primary bg-creative-tech-primary/10'
-                                : 'text-creative-tech-on-surface hover:bg-creative-tech-on-surface/5'
+                                ? 'text-hero-blue-600 bg-hero-blue-50 border border-hero-blue-200'
+                                : 'text-gray-700 hover:bg-gray-100 hover:text-hero-blue-600'
                             }`}
                         >
                           {item.label}
@@ -186,23 +181,17 @@ export function Navbar() {
                       <button
                         key={item.label}
                         onClick={() => handleNavClick(item.href, pathname, router, setMobileMenuOpen)}
-                        className={`block w-full text-left rounded-lg px-3 py-2 text-base font-semibold leading-7 transition-colors
+                        className={`block w-full text-left rounded-lg px-3 py-2 text-base font-semibold leading-7 transition-all duration-300
                           ${
                             isActive
-                              ? 'text-creative-tech-primary bg-creative-tech-primary/10'
-                              : 'text-creative-tech-on-surface hover:bg-creative-tech-on-surface/5'
+                              ? 'text-hero-blue-600 bg-hero-blue-50 border border-hero-blue-200'
+                              : 'text-gray-700 hover:bg-gray-100 hover:text-hero-blue-600'
                           }`}
                       >
                         {item.label}
                       </button>
                     );
                   })}
-                </div>
-                <div className="py-6">
-                  <button className="group flex items-center w-full rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-creative-tech-on-surface hover:bg-creative-tech-on-surface/5 transition-colors">
-                    <Search className="h-5 w-5 mr-3 text-creative-tech-on-surface/70 group-hover:text-creative-tech-primary transition-colors" />
-                    <span className="">Search</span>
-                  </button>
                 </div>
               </div>
             </div>

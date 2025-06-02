@@ -7,38 +7,33 @@ export const HeroContent: React.FC<{
   buttonHoverColor?: string;
 }> = ({
   headlineColor = 'text-white',
-  subtextColor = 'text-white',
-  buttonColor = 'bg-orange-500',
-  buttonHoverColor = 'hover:bg-creative-tech-primary',
+  subtextColor = 'text-blue-200',
+  buttonColor = 'bg-gradient-to-r from-hero-blue-600 to-hero-blue-500',
+  buttonHoverColor = 'hover:from-creative-tech-primary hover:to-hero-blue-600',
 }) => (
-  <div className="flex absolute left-[50%] top-44 transform -translate-x-1/2 flex-col gap-10 items-center text-center h-[449px] w-[663px] 
-    max-xl:w-[600px]
-    max-lg:w-[90%] max-lg:items-center max-lg:text-center
-    max-sm:h-[317px] max-sm:w-[90%] max-sm:items-center max-sm:text-center
-    lg:items-start lg:text-left lg:left-0 lg:transform-none">
-    <h1 className={`text-9xl leading-[108px] w-full
-      max-xl:text-8xl max-xl:leading-[96px]
-      max-lg:text-7xl max-lg:leading-[76px] max-lg:text-center
-      max-md:text-6xl max-md:leading-[64px]
-      max-sm:text-5xl max-sm:leading-10 max-sm:text-center
-      lg:text-left
-      font-serif ${headlineColor}`}>
+  <div className="space-y-8 text-center lg:text-left">
+    <h1 className={`text-6xl sm:text-7xl lg:text-8xl xl:text-9xl 
+      leading-tight font-serif font-bold ${headlineColor}
+      max-w-4xl drop-shadow-2xl`}>
       Reimagining Stories for the New World
     </h1>
-    <p className={`text-2xl w-[85%] 
-      max-xl:text-xl
-      max-lg:text-lg max-lg:text-center
-      max-sm:text-base max-sm:text-center
-      lg:text-left lg:w-[567px]
-      ${subtextColor}`}>
+    <p className={`text-xl sm:text-2xl lg:text-3xl 
+      leading-relaxed ${subtextColor}
+      max-w-2xl lg:max-w-3xl drop-shadow-lg font-medium`}>
       co-built with AI. owned by You.
     </p>
-    <button className={`gap-2.5 px-10 py-6 text-xl font-medium leading-5 text-white cursor-pointer rounded-[40px] 
-      max-lg:px-8 max-lg:py-5 max-lg:text-lg
-      max-sm:px-6 max-sm:py-4 max-sm:text-base
-      lg:self-start
-      ${buttonColor} ${buttonHoverColor}`}>
-      Join Waitlist
-    </button>
+    <div className="pt-4">
+      <button className={`px-12 py-6 text-xl font-bold text-white 
+        rounded-full cursor-pointer transition-all duration-300 
+        shadow-2xl hover:shadow-hero-blue-500/50 transform hover:scale-105
+        ${buttonColor} ${buttonHoverColor}
+        backdrop-blur-sm border border-hero-blue-500/30 hover:border-creative-tech-primary/50
+        relative overflow-hidden group`}>
+        <span className="relative z-10">Join Waitlist</span>
+        {/* Button glow effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-hero-blue-500/20 to-creative-tech-primary/20 
+          opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      </button>
+    </div>
   </div>
 ); 
