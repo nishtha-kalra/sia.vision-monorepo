@@ -3,22 +3,43 @@ import * as React from "react";
 
 export const HeroSection: React.FC = () => {
   return (
-    <section className="flex relative justify-center items-center w-full bg-creative-tech-primary bg-opacity-10 h-[743px] max-md:px-5 max-md:py-16 max-md:h-auto">
-      <div className="relative h-[318px] w-[565px] z-[2] max-md:w-full max-md:max-w-[565px]">
-        <article>
-          <h2 className="mb-5 text-2xl text-creative-tech-primary font-medium">About us</h2>
-          <h3 className="mb-9 text-4xl font-semibold leading-[68px] text-creative-tech-on-surface max-md:text-3xl max-sm:text-3xl font-serif">
-            From Timeless Narratives to Tomorrow&#39;s Universes
-          </h3>
-          <p className="text-lg leading-8 text-zinc-500 w-[463px] max-md:w-full max-sm:text-base">
-            Empowering creators worldwide to build collaborative storytelling universes that transcend boundaries and endure for generations.
-          </p>
-        </article>
+    <section className="relative py-24 md:py-32 bg-gradient-to-br from-creative-tech-surface via-white to-blue-50 overflow-hidden">
+      <div className="container mx-auto px-6 md:px-10">
+        <div className="max-w-3xl mx-auto text-center">
+          {/* Main Headline */}
+          <h1 className="mb-8 text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-creative-tech-on-surface font-serif">
+            From Timeless Narratives to 
+            <span className="block text-creative-tech-primary">Tomorrow's Universes</span>
+          </h1>
+          
+          {/* Main Content */}
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-creative-tech-primary/20 shadow-lg">
+              <div className="text-lg md:text-xl leading-relaxed text-creative-tech-on-surface space-y-6">
+                <p>
+                  Sia.vision was born from a belief: that the most powerful stories are living entities, evolving with us.
+                </p>
+                
+                <p>
+                  We saw a world rich with cultural heritage and brilliant ideas, often constrained by traditional creation and ownership models.
+                </p>
+                
+                <p>
+                  Inspired by the 'Create in India' ethos of using ancient wisdom as a springboard for universal stories, we envision a platform where diverse voices globally, amplified by AI, collaboratively build and own the next era of 'Living Storyworlds.'
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       
-      {/* Decorative Elements */}
-      <div className="absolute right-56 w-28 h-28 rotate-[15.068deg] top-[138px] max-md:top-5 max-md:right-5 max-md:w-20 max-md:h-20 bg-creative-tech-secondary rounded-full opacity-20"></div>
-      <div className="absolute left-44 bottom-[147px] h-[103px] w-[103px] max-md:bottom-5 max-md:left-5 max-md:h-[70px] max-md:w-[70px] bg-creative-tech-accent rounded-full opacity-20"></div>
+      {/* Enhanced Decorative Elements */}
+      <div className="absolute right-20 top-20 w-32 h-32 bg-gradient-to-br from-creative-tech-secondary to-creative-tech-accent rounded-full opacity-20 animate-pulse blur-sm"></div>
+      <div className="absolute left-20 bottom-20 w-28 h-28 bg-gradient-to-br from-creative-tech-primary to-creative-tech-accent rounded-full opacity-20 animate-pulse delay-1000 blur-sm"></div>
+      <div className="absolute right-40 bottom-40 w-20 h-20 bg-gradient-to-br from-creative-tech-accent to-creative-tech-primary rounded-full opacity-15 animate-pulse delay-500 blur-sm"></div>
+      
+      {/* Background glow effects */}
+      <div className="absolute inset-0 bg-creative-glow opacity-50 pointer-events-none"></div>
     </section>
   );
 }; 

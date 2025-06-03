@@ -11,7 +11,7 @@ const FEATURE_CARDS = [
     title: "Beyond Isolated Narratives",
     description: (
       <>
-        The old way often meant creators working in isolation. Sia.vision champions a
+        The traditional way often meant creators working in isolation. Sia.vision champions a
         <strong className="text-stone-900"> new paradigm of open collaboration</strong>, where diverse talents unite to build vast, interconnected storyworlds that grow richer with every contribution.
       </>
     ),
@@ -24,7 +24,7 @@ const FEATURE_CARDS = [
       <>
         Navigating IP rights in collaborations can be complex and unfair. Powered by
         <strong className="text-stone-900"> Story Protocol</strong>, Sia.vision brings
-        <strong className="text-stone-900"> verifiable on-chain ownership</strong> and transparent licensing to every story element, ensuring creators are recognized and rewarded.
+        <strong className="text-stone-900"> verifiable ownership</strong> and transparent licensing to every story element, ensuring creators are recognized and rewarded.
       </>
     ),
     imageSrc: "/empowering-creators.svg",

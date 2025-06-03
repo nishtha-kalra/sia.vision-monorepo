@@ -10,7 +10,6 @@ const navigationItems: NavigationItem[] = [
   { label: "Home", href: "/" },
   { label: "How it works", href: "#how-it-works" },
   { label: "Flywheel", href: "#flywheel" },
-  { label: "For You", href: "#for-you" },
   { label: "Genesis IP", href: "#meet-sia" },
   { label: "About Us", href: "/about" },
   { label: "Contact", href: "#join-ecosystem" },
@@ -31,6 +30,16 @@ const scrollToSection = (href: string) => {
 };
 
 const handleNavClick = (href: string, pathname: string, router: ReturnType<typeof useRouter>, setMobileMenuOpen: (open: boolean) => void) => {
+  // Close mobile menu if open
+  setMobileMenuOpen(false);
+  
+  // Handle home navigation
+  if (href === "/") {
+    router.push("/");
+    return;
+  }
+  
+  // Handle hash/section links
   if (href.startsWith("#")) {
     // If we're on the home page, scroll to section
     if (pathname === "/") {
@@ -40,7 +49,6 @@ const handleNavClick = (href: string, pathname: string, router: ReturnType<typeo
       router.push(`/${href}`);
     }
   }
-  setMobileMenuOpen(false); // Close mobile menu if open
 };
 
 export function Navbar() {

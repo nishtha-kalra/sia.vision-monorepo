@@ -3,7 +3,7 @@ import React from "react";
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-creative-tech-on-surface text-white py-12">
+    <footer className="bg-gray-900 text-white py-12">
       <div className="container mx-auto px-6">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-8 md:space-y-0">
           {/* Logo and Branding */}
@@ -31,7 +31,7 @@ const Footer: React.FC = () => {
             
             {/* X (Twitter) */}
             <a
-              href="https://x.com/siavision" // Placeholder URL
+              href="https://x.com/sia_vision" 
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-300 hover:text-white transition-colors duration-200"
@@ -44,7 +44,7 @@ const Footer: React.FC = () => {
 
             {/* Instagram */}
             <a
-              href="https://instagram.com/siavision" // Placeholder URL
+              href="https://instagram.com/sia_vision" 
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-300 hover:text-white transition-colors duration-200"
@@ -73,11 +73,11 @@ const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="border-t border-gray-700 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-gray-400 text-sm">
-              © 2024 Sia.vision. Building the future of collaborative storytelling.
+            <p className="text-gray-300 text-sm">
+              © 2025 Sia.vision. Building the future of collaborative storytelling.
             </p>
-            <p className="text-gray-400 text-sm">
-              Powered by Story Protocol • Made with ❤️ for creators worldwide
+            <p className="text-gray-300 text-sm">
+              Made with ❤️ for creators worldwide
             </p>
           </div>
         </div>

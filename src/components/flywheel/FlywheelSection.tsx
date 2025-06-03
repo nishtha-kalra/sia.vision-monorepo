@@ -7,7 +7,7 @@ const FLYWHEEL_CARDS = [
   {
     id: 1,
     title: "Create",
-    description: "This is where new sagas begin. Creators and communities lay the foundation: crafting core lore, defining unique characters, and envisioning the initial sparks of new storyworlds. Every foundational element is registered as a verifiable creative work on Story Protocol, securing your ownership from the very start.",
+    description: "This is where new sagas begin. Creators lay the foundation: crafting core lore, defining unique characters, and envisioning the initial sparks of new storyworlds. Every foundational element is registered as a verifiable creative through programmable IP, securing your ownership from the very start.",
     imageSrc: "/create-flywheel.svg",
     imageAlt: "Story Creation Platform"
   },
@@ -21,7 +21,7 @@ const FLYWHEEL_CARDS = [
   {
     id: 3,
     title: "Distribute",
-    description: "Take your co-created and audience-validated storyworlds global. Sia.vision facilitates the transformation of these dynamic creations into diverse formats – from viral short-form content and AI-personalized books to interactive games, XR experiences, and series for major platforms. Fair revenue sharing for all contributors is ensured by the Protocol.",
+    description: "Take your co-created and audience-validated storyworlds global. Sia.vision facilitates the transformation of these dynamic creations into diverse formats – from viral short-form content and AI-personalized books to interactive games, XR experiences, series and films for major platforms. Fair revenue sharing for all contributors is ensured by the Platform.",
     imageSrc: "/distribute-flywheel.svg",
     imageAlt: "Story Distribution Network"
   }
@@ -41,7 +41,7 @@ const DistributeDecorator: React.FC = () => (
 
 export const FlywheelSection: React.FC = () => {
   return (
-    <section id="flywheel" className="relative mx-auto my-0 -mt-0.5 max-w-none bg-white h-[1400px] w-[1440px] max-xl:box-border max-xl:p-5 max-xl:w-full max-xl:h-auto max-xl:min-h-screen max-xl:max-w-[991px] max-sm:max-w-screen-sm">
+    <section id="flywheel" className="relative mx-auto my-0 -mt-0.5 max-w-none bg-white h-[1600px] w-[1440px] pb-20 max-xl:box-border max-xl:p-5 max-xl:w-full max-xl:h-auto max-xl:min-h-[1400px] max-xl:max-w-[991px] max-xl:pb-32 max-sm:max-w-screen-sm max-sm:min-h-[1600px] max-sm:pb-40">
       
       {/* Split Header: Title LEFT, Description RIGHT (FURTHER LOWERED) */}
       <div className="absolute top-16 left-16 right-16 h-[280px] flex gap-12 xl:flex max-xl:relative max-xl:top-0 max-xl:left-auto max-xl:right-auto max-xl:mx-auto max-xl:mt-0 max-xl:mb-10 max-xl:w-full max-xl:flex-col max-xl:text-center max-xl:items-center max-xl:gap-6 max-sm:px-5 max-sm:py-0">
@@ -59,8 +59,11 @@ export const FlywheelSection: React.FC = () => {
         
         {/* Description Section - RIGHT (POSITIONED LOWER) */}
         <div className="flex-1 flex flex-col justify-start pt-24 max-xl:items-center max-xl:justify-center max-xl:pt-0">
+          <h2 className="text-xl font-bold text-neutral-800 mb-4 max-xl:text-center max-sm:text-lg">
+            Powering the Next Generation of Storytelling
+          </h2>
           <p className="text-2xl text-neutral-800 text-opacity-80 leading-relaxed max-xl:text-xl max-xl:text-center max-sm:text-lg max-xl:px-4">
-            At Sia.vision, the journey of a story is a dynamic, collaborative cycle. Our platform is built around this powerful flywheel, empowering you to bring narratives to life, transform them with cutting-edge tools and community passion, and share them with the world across diverse formats – all while retaining ownership and ensuring fair rewards through Story Protocol.
+            At Sia.vision, the journey of a story is a dynamic, collaborative cycle. Our platform is built around this powerful flywheel, empowering you to bring narratives to life, transform them with cutting-edge tools and community passion, and share them with the world across diverse formats – all built on a foundation of clear ownership through programmable IP.
           </p>
         </div>
       </div>
@@ -115,7 +118,7 @@ export const FlywheelSection: React.FC = () => {
       </div>
 
       {/* iPad Pro & iPad Mini: Consistent layout for all tablets */}
-      <div className="hidden xl:hidden md:block relative top-[200px] w-full px-8 mt-16">
+      <div className="hidden xl:hidden md:block relative top-[200px] w-full px-8 mt-16 mb-32">
         <div className="grid grid-cols-2 gap-6 max-w-4xl mx-auto">
           <div className="col-span-2 flex justify-center mb-6">
             <div className="w-full max-w-[380px]">
@@ -151,7 +154,7 @@ export const FlywheelSection: React.FC = () => {
       </div>
 
       {/* Mobile: Stacked Card Layout - Adjusted positioning */}
-      <div className="hidden md:hidden max-md:flex max-md:relative max-md:top-[240px] max-md:left-0 max-md:flex-col max-md:gap-8 max-md:items-center max-md:w-full max-md:px-4 max-md:mt-8">
+      <div className="hidden md:hidden max-md:flex max-md:relative max-md:top-[240px] max-md:left-0 max-md:flex-col max-md:gap-8 max-md:items-center max-md:w-full max-md:px-4 max-md:mt-8 max-md:mb-40">
         {FLYWHEEL_CARDS.map((card) => (
           <div key={card.id} className="w-full max-w-[400px]">
             <StoryCard

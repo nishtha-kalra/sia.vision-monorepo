@@ -1,15 +1,15 @@
 'use client';
 
+import React from 'react';
 import { Navbar } from './navigation/Navbar';
 import { HeroSection } from './hero/HeroSection';
-import HowItWorksSection from './how-it-works/HowItWorksSection';
 import { FlywheelSection } from './flywheel/FlywheelSection';
-import StakeholderBenefitsSection from './stakeholder-benefits/StakeholderBenefitsSection';
+import HowItWorksSection from './how-it-works/HowItWorksSection';
 import MeetSiaSection from './meet-sia/MeetSiaSection';
 import ContactFormSection from './contact-form/ContactFormSection';
 import Footer from './Footer';
 
-export function LandingPage() {
+export const LandingPage: React.FC = () => {
   // Placeholder functions removed as they were unused
 
   return (
@@ -19,11 +19,10 @@ export function LandingPage() {
         <HeroSection />
         <HowItWorksSection />
         <FlywheelSection />
-        <StakeholderBenefitsSection />
         <MeetSiaSection />
         <ContactFormSection />
       </main>
       <Footer />
     </div>
   );
-} 
+}; 

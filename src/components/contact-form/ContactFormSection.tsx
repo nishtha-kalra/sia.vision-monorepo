@@ -44,16 +44,11 @@ const ContactFormSection: React.FC = () => {
   return (
     <section id="join-ecosystem" className="py-16 md:py-20 bg-white">
       <div className="container mx-auto px-6 md:px-10">
-        <div className="py-12 md:py-16 bg-creative-tech-secondary rounded-3xl shadow-xl max-w-4xl mx-auto">
+        <div className="py-12 md:py-16 bg-white rounded-3xl shadow-xl max-w-4xl mx-auto border border-gray-200">
           {/* Section Headline */}
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold font-serif text-center mb-6 text-neutral-800">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold font-serif text-center mb-12 text-creative-tech-on-surface">
             Let&#39;s Build the Future of Story, Together.
           </h2>
-
-          {/* Introductory Text */}
-          <p className="text-lg text-neutral-700 text-center max-w-3xl mx-auto mb-12 leading-relaxed px-4">
-            Sia.vision is more than a platform; it&#39;s a collaborative movement. Whether you have questions, ideas for the SIA genesis storyworld, want to propose your own unique IP or lore, or are interested in partnership opportunities, we&#39;re excited to hear from you. Every spark of imagination can contribute to our evolving universes.
-          </p>
 
           {/* Contact Form */}
           <form onSubmit={handleSubmit} className="max-w-2xl mx-auto px-4">
@@ -66,7 +61,7 @@ const ContactFormSection: React.FC = () => {
                   placeholder="Your Name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent text-neutral-700 text-base"
+                  className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent bg-creative-tech-surface text-creative-tech-on-surface text-base placeholder-gray-500"
                   required
                 />
               </div>
@@ -77,7 +72,7 @@ const ContactFormSection: React.FC = () => {
                   placeholder="Your Email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent text-neutral-700 text-base"
+                  className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent bg-creative-tech-surface text-creative-tech-on-surface text-base placeholder-gray-500"
                   required
                 />
               </div>
@@ -89,16 +84,16 @@ const ContactFormSection: React.FC = () => {
                 name="inquiryType"
                 value={formData.inquiryType}
                 onChange={handleInputChange}
-                className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent text-neutral-700 text-base"
+                className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent bg-creative-tech-surface text-creative-tech-on-surface text-base"
                 required
               >
                 <option value="">Select Area of Interest</option>
-                <option value="general">General Question/Feedback</option>
-                <option value="sia-contribute">Contribute to SIA Genesis Storyworld</option>
-                <option value="new-ip">Propose New IP / Story Concept</option>
-                <option value="partnership">Partnership Inquiry</option>
-                <option value="technical">Technical Query / Platform Idea</option>
-                <option value="creator-waitlist">Join Creator Waitlist</option>
+                <option value="general">General Inquiry / Feedback</option>
+                <option value="sia-contribute">Become a Creator / IP Originator</option>
+                <option value="new-ip">Collaborate / Build on Existing Storyworlds (SIA Genesis)</option>
+                <option value="partnership">Partnership / Distribution Opportunities</option>
+                <option value="technical">Platform & Technical Ideas</option>
+                <option value="community">Join Our Community</option>
               </select>
             </div>
 
@@ -106,11 +101,11 @@ const ContactFormSection: React.FC = () => {
             <div className="mb-8">
               <textarea
                 name="message"
-                placeholder="Tell us about your vision, question, or how you'd like to contribute..."
+                placeholder="Inspired by timeless tales or have a new vision? Tell us about the storyworlds you want to build, the lore you can contribute, or how you see us collaborating."
                 value={formData.message}
                 onChange={handleInputChange}
                 rows={5}
-                className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent text-neutral-700 text-base resize-vertical"
+                className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-creative-tech-primary focus:border-transparent bg-creative-tech-surface text-creative-tech-on-surface text-base resize-vertical placeholder-gray-500"
                 required
               />
             </div>
@@ -120,7 +115,7 @@ const ContactFormSection: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-neutral-800 hover:bg-neutral-700 disabled:bg-neutral-600 text-white font-semibold py-4 px-12 rounded-lg text-lg shadow-lg transition duration-300 w-full md:w-auto"
+                className="bg-creative-tech-primary hover:bg-blue-600 disabled:bg-blue-400 text-white font-semibold py-4 px-12 rounded-lg text-lg shadow-lg transition duration-300 w-full md:w-auto"
               >
                 {isSubmitting ? "Sending..." : "Send Message"}
               </button>
