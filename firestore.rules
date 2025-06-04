@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Contact submissions - only allow server-side writes
+    match /contactSubmissions/{document} {
+      allow read, write: if false; // Only allow server-side access
+    }
+    
+    // Default rule - deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

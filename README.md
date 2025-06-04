@@ -1,314 +1,251 @@
-# Sia.Vision Landing Page
+# SIA.Vision - Reimagining Stories for the New World
 
-A modern, animated landing page for Sia.Vision built with Next.js, React, Tailwind CSS, and featuring comprehensive storytelling platform showcase with interactive sections for creators, builders, and distributors.
+A modern, responsive landing page for SIA.Vision built with Next.js, React, Tailwind CSS, and Firebase. Features comprehensive storytelling platform showcase with interactive sections for creators, builders, and distributors.
 
 ## 🚀 Tech Stack
 
-- **Framework**: Next.js 15.3.2
-- **Styling**: Tailwind CSS
-- **Language**: TypeScript
+- **Framework**: Next.js 14.2.3
+- **Language**: TypeScript 5
+- **Styling**: Tailwind CSS 3.4.1
+- **Backend**: Firebase (Cloud Functions, Firestore, Hosting)
+- **Email Service**: SendGrid (configured in Cloud Functions)
 - **Package Manager**: npm
-- **Code Quality**: ESLint, Prettier
-- **Icons**: Lucide React
-- **Media**: Next.js Image optimization, HTML5 Video
+- **Code Quality**: ESLint 9 (eslint.config.mjs), Prettier 3.5.3
+- **Icons**: Lucide React 0.511.0
+- **Animations**: Framer Motion 12.12.2
 
-## ✨ Features
+## ✨ Latest Features
 
-- **Modern Design**: Clean, professional design with Creative Tech color scheme and consistent branding
-- **Responsive**: Fully responsive design optimized for desktop, tablet, and mobile devices
-- **Interactive Videos**: Hover-to-unmute video functionality with seamless playback
-- **Accessible**: Built with accessibility in mind including ARIA labels and semantic HTML
-- **Performance**: Optimized for fast loading and smooth interactions with proper image/video optimization
-- **Type Safe**: Full TypeScript support for better development experience
-- **Smooth Navigation**: Smooth scrolling navigation between sections with active state management
+### 🎨 Sticky Navigation
+- **Always Visible**: Navbar stays at top when scrolling
+- **Full Width**: Spans entire viewport for desktop and mobile
+- **Mobile Menu**: Fixed hamburger menu with high z-index
+- **Smooth Scrolling**: Navigate between sections seamlessly
 
-## 🏗️ Project Structure
+### 🔥 Firebase Integration
+- **Contact Form Backend**: Cloud Functions with email notifications
+- **Firestore Database**: Secure contact submission storage
+- **SendGrid Emails**: Beautiful HTML email templates
+- **Development Environment**: Local emulators for testing
+
+### 📱 Mobile-First Design
+- **Responsive Navigation**: Working hamburger menu on all devices
+- **Touch Optimized**: Proper touch targets and interactions
+- **Z-Index Management**: Menu appears above all content including hero
+- **Optimized Spacing**: Reduced padding for better mobile experience
+
+## ��️ Project Structure
 
 ```
-src/
-├── app/
-│   ├── globals.css          # Global styles and custom CSS
-│   ├── layout.tsx           # Root layout component
-│   └── page.tsx             # Home page
-├── components/
-│   ├── navigation/
-│   │   └── Navbar.tsx       # Navigation bar with smooth scrolling
-│   ├── hero/
-│   │   └── HeroSection.tsx  # Main hero section
-│   ├── how-it-works/
-│   │   ├── HowItWorksSection.tsx    # How it works main section
-│   │   ├── HowItWorksCard.tsx       # Feature cards component
-│   │   ├── WavePattern.tsx          # Decorative wave SVG patterns
-│   │   ├── CircularText.tsx         # Animated circular text elements
-│   │   └── index.ts                 # How it works exports
-│   ├── flywheel/
-│   │   ├── FlywheelSection.tsx      # Main flywheel section
-│   │   ├── StoryCard.tsx            # Story card components
-│   │   ├── StoryCardImage.tsx       # Card image component
-│   │   ├── StoryCardContent.tsx     # Card content component
-│   │   ├── DecorativeShapes.tsx     # SVG decorative elements
-│   │   └── index.ts                 # Flywheel exports
-│   ├── stakeholder-benefits/
-│   │   ├── StakeholderBenefitsSection.tsx  # Main benefits section
-│   │   └── StakeholderCard.tsx            # Individual benefit cards
-│   ├── meet-sia/
-│   │   └── MeetSiaSection.tsx       # Genesis IP showcase section
-│   ├── contact-form/
-│   │   └── ContactFormSection.tsx   # Contact form with inquiry types
-│   ├── Footer.tsx           # Footer with social media and contact
-│   ├── LandingPage.tsx      # Main landing page component
-│   └── index.ts             # Component exports
-├── lib/
-│   └── utils.ts             # Utility functions
-└── types/
-    └── index.ts             # TypeScript type definitions
+sia-modern/
+├── src/
+│   ├── app/
+│   │   ├── favicon.ico             # SIA branded favicon (moved here for Next.js 13+)
+│   │   ├── icon.svg                # SVG icon for modern browsers
+│   │   ├── globals.css             # Global styles
+│   │   ├── layout.tsx              # Root layout
+│   │   ├── page.tsx                # Home page
+│   │   └── about/                  # About page
+│   ├── components/
+│   │   ├── navigation/
+│   │   │   └── Navbar.tsx          # Sticky navbar with working mobile menu
+│   │   ├── hero/
+│   │   │   ├── HeroSection.tsx     # Hero with video background
+│   │   │   └── HeroContent.tsx     # Hero text and CTA
+│   │   ├── how-it-works/
+│   │   │   └── HowItWorksSection.tsx
+│   │   ├── flywheel/
+│   │   │   └── FlywheelSection.tsx
+│   │   ├── meet-sia/
+│   │   │   └── MeetSiaSection.tsx
+│   │   ├── contact-form/
+│   │   │   └── ContactFormSection.tsx  # Firebase-integrated form
+│   │   ├── Footer.tsx
+│   │   └── LandingPage.tsx
+│   ├── lib/
+│   │   └── firebase.ts             # Firebase SDK configuration
+│   └── types/
+│       └── index.ts
+├── functions/                      # Firebase Cloud Functions
+│   ├── src/
+│   │   └── index.ts               # Contact form handler
+│   └── package.json
+├── public/                        # Static assets
+│   ├── sia.mp4                    # Hero video
+│   ├── favicon.ico                # Also in /app for Next.js
+│   └── *.svg                      # Feature illustrations
+├── firebase.json                  # Firebase configuration
+├── firestore.rules               # Database security
+├── firestore.indexes.json        # Database indexes
+├── .firebaserc                   # Project settings
+├── deploy.sh                     # Full deployment
+├── deploy-hosting-only.sh        # Hosting only
+├── dev.sh                        # Development environment
+├── tailwind.config.js            # Tailwind config
+├── eslint.config.mjs             # ESLint config
+├── next.config.mjs               # Next.js config
+├── postcss.config.mjs            # PostCSS config
+└── package.json                  # Dependencies
 ```
 
-## 🎨 Design Features
+## 🚀 Quick Start
 
-### Navigation Bar
-- Sticky navigation with backdrop blur effect
-- Smooth scrolling to section anchors
-- Mobile-responsive hamburger menu with slide-out panel
-- Active state indicators with Creative Tech color scheme
-- Auto-closing mobile menu after navigation
+### Prerequisites
+- Node.js 18+
+- Firebase CLI: `npm install -g firebase-tools`
 
-### Hero Section
-- Gradient background with floating elements
-- Animated text reveals
-- Interactive elements with hover effects
-- Responsive typography and layout
-
-### How It Works Section
-- Four feature cards showcasing Story Protocol capabilities
-- Decorative wave patterns and circular text elements
-- Responsive grid layout (2x2 desktop, stacked mobile)
-- Hover animations and interactive states
-- SVG image support with fallback handling
-
-### Flywheel Section
-- Three-stage storytelling process: Create, Build, Distribute
-- Diagonal card positioning on desktop with decorative shapes
-- Responsive layouts:
-  - **Desktop (xl+)**: Diagonal positioning with decorative elements
-  - **Tablet (md-xl)**: Grid layout with Create on top, Build/Distribute side-by-side
-  - **Mobile (<md)**: Stacked vertical cards
-- Smooth hover animations and transitions
-- Story Protocol integration messaging
-
-### Stakeholder Benefits Section ("For You")
-- Three stakeholder categories: Visionaries, Co-Creators, Developers
-- Light cards on dark background for optimal contrast
-- Interactive hover effects and smooth animations
-- SVG illustrations for each stakeholder type
-- Call-to-action buttons with engaging copy
-- Responsive three-column grid (desktop) to single-column stack (mobile)
-
-### Meet Sia Section (Genesis IP Showcase)
-- **Rich Character Lore**: Three-card introduction covering Character, Genesis, and Vision
-- **Interactive Video Experience**: 
-  - Two videos showcasing SIA's universe and journey
-  - Vertical stacking to avoid attention division
-  - Hover-to-unmute functionality for seamless audio control
-  - Auto-playing, looping videos with sound indicators
-- **Immersive Design**: 
-  - Terracotta/ochre gradient background matching reference design
-  - Decorative dotted patterns and large circular elements
-  - Proper video spacing with connecting star element
-- **Genesis IP Storytelling**: 
-  - Detailed character background (mystical visualization bracelet)
-  - Story origins in Varanasi's sacred ghats
-  - Vision for collaborative, evolving "Living Storyworld"
-  - Indian heritage bridging to global adventures
-
-### Contact Form Section
-- **Professional Contact Experience**:
-  - Headline: "Let's Build the Future of Story, Together."
-  - Form fields: Name, Email, Inquiry Type dropdown, Message
-  - Six inquiry type options for targeted communication
-  - Gold container design using creative-tech-secondary color
-- **Form Functionality**:
-  - Client-side validation with required field handling
-  - Submit status messages (success/error states)
-  - Form reset after successful submission
-  - Placeholder for backend integration
-  - Responsive grid layout for name/email fields
-- **User Experience**:
-  - Encouraging copy emphasizing collaboration
-  - Clear call-to-action with "Send Message" button
-  - Professional styling with focus states
-  - Error handling with fallback contact email
-
-### Footer
-- **Contact Information**:
-  - Primary contact email: connect@sia.vision with mailto link
-  - Branded SIA logo with circular icon design
-  - "Get in touch" and "Follow us" sections
-- **Social Media Integration**:
-  - X (Twitter) icon with hover effects
-  - Instagram icon with standard design
-  - Discord icon (hidden for future activation)
-  - Placeholder URLs ready for real social media accounts
-- **Brand Elements**:
-  - Creative Tech color scheme consistency
-  - Copyright notice with year and brand message
-  - "Powered by Story Protocol" attribution
-  - Responsive layout with proper mobile stacking
-
-## 🚀 Getting Started
+### Development Setup
 
 1. **Install dependencies**:
    ```bash
+   cd sia-modern
    npm install
    ```
 
-2. **Run the development server**:
+2. **Start development environment**:
    ```bash
-   npm run dev
+   ./dev.sh
+   # Starts both Firebase emulators and Next.js dev server
    ```
 
-3. **Open your browser** and navigate to `http://localhost:3000`
+3. **Access your app**:
+   - **Next.js**: http://localhost:3000
+   - **Firebase UI**: http://localhost:4000
+   - **Functions**: http://localhost:5001
 
-## 📱 Responsive Design
+### Deployment
 
-The landing page is fully responsive and optimized for:
-- **Desktop (xl+)**: Full diagonal layout with decorative elements
-- **Tablet (md-xl)**: Grid-based layouts with centered content
-- **Mobile (<md)**: Stacked layouts with optimized touch targets and spacing
+1. **Quick deployment** (hosting only):
+   ```bash
+   ./deploy-hosting-only.sh
+   ```
 
-### Breakpoint Strategy
-- Uses Tailwind CSS breakpoints: `sm`, `md`, `lg`, `xl`
-- Custom responsive utilities for complex layouts
-- Conditional rendering of decorative elements
-- Optimized touch targets for mobile interactions
+2. **Full deployment** (with functions):
+   ```bash
+   ./deploy.sh
+   ```
 
-## 🎯 Component Architecture
+## 🔧 Configuration Files
 
-### Modular Design
-- Each section is self-contained and reusable
-- Shared components for cards, decorative elements, and patterns
-- Props-based configuration for flexibility
-- TypeScript interfaces for type safety
+### Current Config Files
+- ✅ `eslint.config.mjs` - ESLint 9 flat config (not .json)
+- ✅ `tailwind.config.js` - Tailwind CSS configuration
+- ✅ `next.config.mjs` - Next.js configuration  
+- ✅ `postcss.config.mjs` - PostCSS with Tailwind (working correctly)
+- ✅ `tsconfig.json` - TypeScript configuration
 
-### Theme System
-- Creative Tech color palette throughout
-- Consistent spacing and typography scales
-- Hover states and interactive feedback
-- Accessibility-first design principles
+### Firebase Files
+- ✅ `firebase.json` - Services configuration
+- ✅ `firestore.rules` - Database security
+- ✅ `firestore.indexes.json` - Query optimization
+- ✅ `.firebaserc` - Project ID (sia-vision)
 
-## 🔧 Customization
+## 🎯 Fixed Issues
+
+### ✅ Navigation Menu
+- **Fixed z-index conflicts**: Menu now appears above hero section
+- **Working hamburger**: All navigation items visible on mobile/iPad
+- **Sticky positioning**: Navbar stays visible while scrolling
+- **Proper spacing**: Reduced padding for better mobile experience
+
+### ✅ Favicon Implementation
+- **Correct location**: Moved to `/app` directory for Next.js 13+
+- **SIA branding**: Blue circle with "SIA" text
+- **Multiple formats**: ICO and SVG for browser compatibility
+- **Cache busting**: Proper refresh handling
+
+### ✅ Repository Structure
+- **Main directory**: All files moved to `sia-modern/`
+- **Firebase integration**: All config files in main directory
+- **Deployment scripts**: Updated for new structure
+- **Development workflow**: Streamlined setup process
+
+## 📧 Contact Form Features
+
+### Firebase Integration
+- **Cloud Functions**: Server-side form processing
+- **SendGrid**: Professional email delivery
+- **Firestore**: Secure data storage
+- **Validation**: Client and server-side validation
+- **Email Templates**: Admin notifications and user auto-replies
+
+### Security
+- **Server-only access**: Firestore rules prevent client access
+- **Input sanitization**: XSS prevention
+- **Rate limiting**: Built-in Firebase protection
+
+## 🎨 Design System
 
 ### Colors
-The Creative Tech brand colors are defined in `tailwind.config.js`:
-```typescript
-colors: {
-  'creative-tech-primary': '#3A86FF',     // Vibrant, trustworthy Blue
-  'creative-tech-secondary': '#FFAB00',   // Energetic, creative Orange/Mango
-  'creative-tech-accent': '#48D8D0',      // Bright Teal/Mint
-  'creative-tech-surface': '#F8F9FA',     // Light Grey / Off-White
-  'creative-tech-on-surface': '#1c1b1f',  // Dark Grey/Near Black
-  'brand-orange': {
-    '300': '#EFB36D',
-    '400': '#EFAC64', 
-    '500': '#E99F4E',
-    '600': '#FE6E06',
-  },
-}
-```
+- **Primary Blue**: #3A86FF (navigation, CTAs)
+- **Accent Teal**: #48D8D0 (highlights, effects)
+- **Secondary Gold**: #FFAB00 (contact form, accents)
 
-### Content
-Update section content by modifying the data arrays in each section:
-```typescript
-// HowItWorksSection.tsx
-const FEATURE_CARDS = [
-  // Add or modify feature cards
-];
+### Typography
+- **Headers**: Serif fonts for elegance
+- **Body**: Sans-serif for readability
+- **Navigation**: Clean, medium weight
 
-// FlywheelSection.tsx  
-const FLYWHEEL_CARDS = [
-  // Add or modify flywheel stages
-];
+## 📱 Mobile Experience
 
-// StakeholderBenefitsSection.tsx
-const STAKEHOLDER_CARDS = [
-  // Add or modify stakeholder types
-];
-```
+### Responsive Design
+- **Mobile-first**: Optimized for touch devices
+- **Sticky navigation**: Always accessible menu
+- **Touch targets**: Minimum 44px for accessibility
+- **Optimized spacing**: Reduced padding for mobile
 
-### Navigation
-Add new navigation items in `Navbar.tsx`:
-```typescript
-const navigationItems: NavigationItem[] = [
-  { label: "Home", href: "#", isActive: true },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Flywheel", href: "#flywheel" },
-  { label: "For You", href: "#for-you" },
-  { label: "Genesis IP", href: "#meet-sia" },
-  { label: "Contact", href: "#join-ecosystem" },
-];
-```
+### Performance
+- **Static export**: Fast CDN delivery
+- **Image optimization**: Automatic WebP conversion
+- **Code splitting**: Route-based optimization
 
-## 🖼️ Assets
+## 🔒 Security & Best Practices
 
-The project uses optimized local assets for performance:
+### Firebase Security
+- **Firestore rules**: Server-side only access
+- **Function validation**: Input sanitization
+- **Environment variables**: Secure API key management
 
-### SVG Illustrations
-- `/for-you-1.svg` - Visionaries & IP Originators
-- `/for-you-2.svg` - Co-Creators & Builders  
-- `/for-you-3.svg` - Developers & Distributors
-- `/create-flywheel.svg` - Create stage illustration
-- `/build-flywheel.svg` - Build stage illustration  
-- `/distribute-flywheel.svg` - Distribute stage illustration
-- Various feature illustrations for How It Works section
+### Code Quality
+- **TypeScript strict**: Full type safety
+- **ESLint rules**: Code quality enforcement
+- **Prettier formatting**: Consistent code style
 
-### Video Content
-- `/sia-a-universe-reimagined.mp4` - SIA Universe Teaser
-- `/sia-journey_begins.mp4` - SIA Journey Origins
+## 📊 Available Scripts
 
-## 🎬 Video Implementation
-
-### Best Practices Used
-- **Performance**: Videos only auto-play when in viewport
-- **User Control**: Hover-to-unmute functionality
-- **Accessibility**: Proper video controls and fallback content
-- **Mobile Optimization**: `playsInline` attribute for iOS compatibility
-- **SEO**: Semantic HTML structure with descriptive content
-
-## 🚀 Deployment
-
-### Build for production:
 ```bash
-npm run build
+# Development
+npm run dev          # Start dev server
+./dev.sh            # Start dev + Firebase emulators
+
+# Build & Deploy  
+npm run build       # Build for production
+./deploy.sh         # Deploy everything
+./deploy-hosting-only.sh  # Deploy hosting only
+
+# Code Quality
+npm run lint        # ESLint checks
+npm run type-check  # TypeScript validation
 ```
 
-### Start production server:
-```bash
-npm start
-```
+## 🎯 Next Steps
 
-## 📦 Available Scripts
+### Contact Form Activation
+1. **Firebase upgrade**: Upgrade to Blaze plan for Cloud Functions
+2. **SendGrid setup**: Configure API key and verify domains
+3. **Email testing**: Test form submissions end-to-end
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run type-check` - Run TypeScript type checking
+### Additional Features
+- **Analytics**: Firebase Analytics integration
+- **SEO**: Meta tags and Open Graph optimization
+- **Performance**: Core Web Vitals monitoring
 
-## 🤝 Contributing
+## 📞 Support
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+- **Live Site**: https://sia-vision.web.app
+- **Email**: connect@sia.vision
+- **Firebase Project**: sia-vision
 
-## 📄 License
+---
 
-This project is licensed under the MIT License.
-
-## 🙏 Acknowledgments
-
-- Story Protocol for blockchain-based IP ownership concepts
-- Next.js team for the excellent framework
-- Tailwind CSS for responsive design utilities
-- Indian cultural heritage for SIA's rich narrative foundation
+**Built for the future of collaborative storytelling with Next.js 14.2.3, Firebase, and modern web technologies.**
