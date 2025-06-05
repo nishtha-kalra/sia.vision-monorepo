@@ -22,7 +22,7 @@ export const TeamSection: React.FC = () => {
             <TeamMemberCard
               name="Nishtha Kalra"
               title="Founder & Chief Visionary"
-              bio="Nishtha is a product leader and software engineer driven to fuse storytelling with technology and community. Leveraging her experience in building innovative products and generative AI applications at HubSpot and Harry's Inc., alongside masters in Machine Learning, she founded Sia.vision to empower global, collaborative IP creation rooted in fairness and inspired by diverse narrative traditions."
+              bio="Nishtha is a product leader and software engineer driven to fuse storytelling with technology and community. Leveraging her experience in building innovative products and generative AI applications at HubSpot and Harry's Inc., alongside a master's degree in Machine Learning, she founded Sia.vision to empower global, collaborative IP creation rooted in fairness and inspired by diverse narrative traditions."
             />
           </div>
         </div>

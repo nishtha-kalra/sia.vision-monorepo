@@ -21,13 +21,13 @@ export const AdvisorSection: React.FC = () => {
           <TeamMemberCard
             name="Akshay Kant"
             title="Strategic Advisor – Web3 & IP Economy"
-            bio="Akshay is a product-minded blockchain engineer with over decade   of experience building payment and blockchain solutions for tier-1 financial institutions like Visa and Chainalysis, building production-grade Web3 solutions. As a former startup CEO who developed NFT ticketing marketplace and has advised on the architecture for the UK 'Digital Pound' at the Bank of England., he guides Sia.vision's decentralized IP economy and programmable ownership strategy."
+            bio="Akshay is a product-minded blockchain engineer with over a decade of experience building payment and blockchain solutions for tier-1 financial institutions like Visa and Chainalysis, developing production-grade Web3 solutions. As a former startup CEO who developed an NFT ticketing marketplace and has advised on the architecture for the UK 'Digital Pound' at the Bank of England, he guides Sia.vision's decentralised IP economy and programmable ownership strategy."
           />
           
           <TeamMemberCard
             name="Janu Verma"
             title="Technology Advisor – AI & Narrative Intelligence"
-            bio="Janu is a Principal Applied Scientist at Microsoft, leading efforts in building Microsoft Copilot and LLMs, and leveraging graph neural networks and transformer models for contextual content recommendation. With over a decade of experience in applied ML research and building scalable AI products for personalization and NLP at global tech firms like Mastercard and IBM, Janu advises Sia.vision on ethically integrating cutting-edge AI for narrative generation, content personalization, and platform intelligence."
+            bio="Janu is a Principal Applied Scientist at Microsoft, leading efforts in building Microsoft Copilot and LLMs, and leveraging graph neural networks and transformer models for contextual content recommendation. With over a decade of experience in applied ML research and building scalable AI products for personalisation and NLP at global tech firms like Mastercard and IBM, Janu advises Sia.vision on ethically integrating cutting-edge AI for narrative generation, content personalisation, and platform intelligence."
           />
         </div>
       </div>

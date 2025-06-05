@@ -88,7 +88,7 @@ const ContactFormSection: React.FC = () => {
                 required
               >
                 <option value="">Select Area of Interest</option>
-                <option value="general">General Inquiry / Feedback</option>
+                <option value="general">General Enquiry / Feedback</option>
                 <option value="sia-contribute">Become a Creator / IP Originator</option>
                 <option value="new-ip">Collaborate / Build on Existing Storyworlds (SIA Genesis)</option>
                 <option value="partnership">Partnership / Distribution Opportunities</option>

@@ -28,7 +28,7 @@ export const HeroContent: React.FC<{
       <p className={`text-lg sm:text-xl lg:text-2xl 
         leading-relaxed ${subtextColor}
         max-w-2xl lg:max-w-3xl drop-shadow-lg font-medium`}>
-        co-built with AI. owned by You.
+        co-built with AI. owned by you.
       </p>
       <div className="pt-4">
         <button 

@@ -9,7 +9,7 @@ export const HeroSection: React.FC = () => {
           {/* Main Headline */}
           <h1 className="mb-8 text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-creative-tech-on-surface font-serif">
             From Timeless Narratives to 
-            <span className="block text-creative-tech-primary">Tomorrow's Universes</span>
+            <span className="block text-creative-tech-primary">Tomorrow&#39;s Universes</span>
           </h1>
           
           {/* Main Content */}
@@ -25,7 +25,7 @@ export const HeroSection: React.FC = () => {
                 </p>
                 
                 <p>
-                  Inspired by the 'Create in India' ethos of using ancient wisdom as a springboard for universal stories, we envision a platform where diverse voices globally, amplified by AI, collaboratively build and own the next era of 'Living Storyworlds.'
+                  Inspired by the &#39;Create in India&#39; ethos of using ancient wisdom as a springboard for universal stories, we envision a platform where diverse voices globally, amplified by AI, collaboratively build and own the next era of &#39;Living Storyworlds&#39;.
                 </p>
               </div>
             </div>

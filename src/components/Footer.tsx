@@ -44,7 +44,7 @@ const Footer: React.FC = () => {
 
             {/* Instagram */}
             <a
-              href="https://instagram.com/sia_vision" 
+              href="https://instagram.com/sia_vision_" 
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-300 hover:text-white transition-colors duration-200"

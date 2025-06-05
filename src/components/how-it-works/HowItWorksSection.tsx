@@ -24,7 +24,7 @@ const FEATURE_CARDS = [
       <>
         Navigating IP rights in collaborations can be complex and unfair. Powered by
         <strong className="text-stone-900"> Story Protocol</strong>, Sia.vision brings
-        <strong className="text-stone-900"> verifiable ownership</strong> and transparent licensing to every story element, ensuring creators are recognized and rewarded.
+        <strong className="text-stone-900"> verifiable ownership</strong> and transparent licensing to every story element, ensuring creators are recognised and rewarded.
       </>
     ),
     imageSrc: "/empowering-creators.svg",

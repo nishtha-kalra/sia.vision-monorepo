@@ -55,7 +55,7 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
           </h4>
         </div>
         
-        <p className="text-gray-700 leading-relaxed flex-grow text-sm">
+        <p className="text-gray-700 leading-relaxed flex-grow text-base">
           {bio}
         </p>
       </div>

@@ -33,7 +33,7 @@ export const MissionVisionSection: React.FC = () => {
             
             <div className="bg-creative-tech-surface rounded-2xl p-8 border-l-4 border-creative-tech-secondary">
               <p className="text-lg leading-8 text-creative-tech-on-surface">
-                To empower creators and communities with a decentralized platform for modular storytelling, leveraging AI and programmable IP to build, own, and share 'Living Storyworlds' across all media.
+                To empower creators and communities with a decentralised platform for modular storytelling, leveraging AI and programmable IP to build, own, and share &#39;Living Storyworlds&#39; across all media.
               </p>
             </div>
           </div>

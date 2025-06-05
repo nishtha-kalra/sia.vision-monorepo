@@ -21,7 +21,7 @@ const FLYWHEEL_CARDS = [
   {
     id: 3,
     title: "Distribute",
-    description: "Take your co-created and audience-validated storyworlds global. Sia.vision facilitates the transformation of these dynamic creations into diverse formats – from viral short-form content and AI-personalized books to interactive games, XR experiences, series and films for major platforms. Fair revenue sharing for all contributors is ensured by the Platform.",
+    description: "Take your co-created and audience-validated storyworlds global. Sia.vision facilitates the transformation of these dynamic creations into diverse formats – from viral short-form content and AI-personalised books to interactive games, XR experiences, series and films for major platforms. Fair revenue sharing for all contributors is ensured by the Platform.",
     imageSrc: "/distribute-flywheel.svg",
     imageAlt: "Story Distribution Network"
   }
