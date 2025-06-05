@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3A86FF"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" rx="64" fill="url(#bgGradient)"/>
+  <text x="50%" y="54%" text-anchor="middle" fill="white" font-size="120" font-family="Inter, Arial, sans-serif" font-weight="bold" dy=".1em">SIA</text>
+  <circle cx="340" cy="60" r="8" fill="white" opacity="0.3"/>
+  <circle cx="60" cy="340" r="12" fill="white" opacity="0.2"/>
+  <circle cx="320" cy="320" r="6" fill="white" opacity="0.4"/>
+</svg> 

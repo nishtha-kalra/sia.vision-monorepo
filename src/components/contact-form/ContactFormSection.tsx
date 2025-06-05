@@ -1,8 +1,22 @@
 "use client";
 import { useState } from "react";
 
+interface ContactFormData {
+  name: string;
+  email: string;
+  inquiryType: string;
+  message: string;
+}
+
+interface SubmissionResponse {
+  success: boolean;
+  message: string;
+  enquiryId?: string;
+  error?: string;
+}
+
 const ContactFormSection: React.FC = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ContactFormData>({
     name: "",
     email: "",
     inquiryType: "",
@@ -10,6 +24,7 @@ const ContactFormSection: React.FC = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -23,19 +38,35 @@ const ContactFormSection: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
+    setErrorMessage("");
 
     try {
-      // Placeholder for backend integration
-      console.log("Form submission:", formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setSubmitStatus('success');
-      setFormData({ name: "", email: "", inquiryType: "", message: "" });
+      // Get the function URL - adjust this based on your Firebase project
+      const functionUrl = process.env.NODE_ENV === 'production'
+        ? 'https://us-central1-sia-vision.cloudfunctions.net/submitContactForm'
+        : 'http://localhost:5001/sia-vision/us-central1/submitContactForm'; // For local development
+
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result: SubmissionResponse = await response.json();
+
+      if (response.ok && result.success) {
+        setSubmitStatus('success');
+        setFormData({ name: "", email: "", inquiryType: "", message: "" });
+        console.log("Form submitted successfully:", result.enquiryId);
+      } else {
+        throw new Error(result.error || 'Failed to submit form');
+      }
     } catch (error) {
       console.error("Form submission error:", error);
       setSubmitStatus('error');
+      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +161,9 @@ const ContactFormSection: React.FC = () => {
 
             {submitStatus === 'error' && (
               <div className="mt-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center">
-                Sorry, there was an error sending your message. Please try again or contact us directly at connect@sia.vision
+                <p className="font-semibold mb-2">Sorry, there was an error sending your message.</p>
+                {errorMessage && <p className="text-sm mb-2">Error: {errorMessage}</p>}
+                <p>Please try again or contact us directly at <a href="mailto:connect@sia.vision" className="text-red-800 font-medium underline">connect@sia.vision</a></p>
               </div>
             )}
           </form>

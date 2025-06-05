@@ -1,8 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Contact submissions - only allow server-side writes
-    match /contactSubmissions/{document} {
+    // Enquiries collection - only allow server-side writes
+    match /enquiries/{document} {
       allow read, write: if false; // Only allow server-side access
     }
     
