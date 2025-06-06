@@ -18,11 +18,13 @@ export const TeamSection: React.FC = () => {
 
         {/* Single centered card */}
         <div className="flex justify-center">
-          <div className="w-full max-w-[400px]">
+          <div className="w-full max-w-[440px]">
             <TeamMemberCard
               name="Nishtha Kalra"
               title="Founder & Chief Visionary"
               bio="Nishtha is a product leader and software engineer driven to fuse storytelling with technology and community. Leveraging her experience in building innovative products and generative AI applications at HubSpot and Harry's Inc., alongside a master's degree in Machine Learning, she founded Sia.vision to empower global, collaborative IP creation rooted in fairness and inspired by diverse narrative traditions."
+              imageUrl="/Nishtha-Kalra.png"
+              linkedinUrl="https://www.linkedin.com/in/nishtha-kalra/"
             />
           </div>
         </div>
