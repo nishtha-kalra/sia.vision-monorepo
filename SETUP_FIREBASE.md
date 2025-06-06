@@ -38,6 +38,11 @@ This guide will help you set up the complete Firebase integration for the Sia.vi
    - Go to Firebase Console → Functions
    - Functions will be enabled automatically when you deploy
 
+3. **Authentication**:
+   - Go to Firebase Console → Authentication → Get started
+   - Enable **Google**, **Facebook**, and **Apple** providers
+   - Add your OAuth redirect URIs as required by each provider
+
 #### Get Firebase Configuration
 1. Go to Project Settings → General → Your apps
 2. Add a web app if you haven't already

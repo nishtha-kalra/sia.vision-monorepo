@@ -13,6 +13,7 @@ const navigationItems: NavigationItem[] = [
   { label: "Genesis IP", href: "#meet-sia" },
   { label: "About Us", href: "/about" },
   { label: "Contact", href: "#join-ecosystem" },
+  { label: "Join", href: "/join" },
 ];
 
 const scrollToSection = (href: string) => {
