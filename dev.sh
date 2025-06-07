@@ -21,7 +21,7 @@ sleep 3
 
 # Start Next.js dev server
 echo "⚡ Starting Next.js development server..."
-npm --workspace apps/web run dev &
+pnpm --filter @sia/web run dev &
 
 echo "🎉 Development environment ready!"
 echo "📱 Next.js: http://localhost:3000"

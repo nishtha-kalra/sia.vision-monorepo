@@ -1,227 +1,258 @@
-# SIA.Vision - Reimagining Stories for the New World
+# SIA Modern - Monorepo
 
-A modern, responsive landing page for SIA.Vision built with Next.js, React, Tailwind CSS, and Firebase. Features comprehensive storytelling platform showcase with interactive sections for creators, builders, and distributors.
+A modern full-stack application built with Next.js, Firebase, and TypeScript, organized as a monorepo using Turborepo and pnpm.
 
-## 🚀 Tech Stack
+## 🏗️ Architecture
 
-- **Framework**: Next.js 14.2.3
-- **Language**: TypeScript 5
-- **Styling**: Tailwind CSS 3.4.1
-- **Backend**: Firebase (Cloud Functions, Firestore, Hosting)
-- **Email Service**: SendGrid (configured in Cloud Functions)
-- **Package Manager**: npm
-- **Code Quality**: ESLint 9 (eslint.config.mjs), Prettier 3.5.3
-- **Icons**: Lucide React 0.511.0
-- **Animations**: Framer Motion 12.12.2
+This monorepo contains:
 
-## ✨ Latest Features
+- **`apps/web`** - Next.js 14 frontend application with static export
+- **`apps/functions`** - Firebase Cloud Functions backend (Node.js 20)
+- **`packages/shared`** - Shared types, utilities, and configurations
 
-### 🎨 Sticky Navigation
-- **Always Visible**: Navbar stays at top when scrolling
-- **Full Width**: Spans entire viewport for desktop and mobile
-- **Mobile Menu**: Fixed hamburger menu with high z-index
-- **Smooth Scrolling**: Navigate between sections seamlessly
+## ⚡ Quick Start
 
-### 🔥 Firebase Integration
-- **Contact Form Backend**: Cloud Functions with email notifications
-- **Firestore Database**: Secure contact submission storage
-- **SendGrid Emails**: Beautiful HTML email templates
-- **Development Environment**: Local emulators for testing
+```bash
+# Install pnpm globally (if not already installed)
+npm install -g pnpm
 
-### 📱 Mobile-First Design
-- **Responsive Navigation**: Working hamburger menu on all devices
-- **Touch Optimized**: Proper touch targets and interactions
-- **Z-Index Management**: Menu appears above all content including hero
-- **Optimized Spacing**: Reduced padding for better mobile experience
+# Install dependencies
+pnpm install
 
-## ��️ Project Structure
+# Start development - Web app only (fastest)
+pnpm run --filter=@sia/web dev
+
+# Start all development servers
+pnpm run dev
+
+# Build all packages
+pnpm run build
+
+# Run linting across all packages
+pnpm run lint
+
+# Type check all packages
+pnpm run type-check
+```
+
+## 🖥️ Local Development (Web Only)
+
+For quick frontend development:
+
+```bash
+# Navigate to web app and start dev server
+cd apps/web && pnpm dev
+
+# Or use the workspace filter (from root)
+pnpm run --filter=@sia/web dev
+```
+
+This starts the Next.js dev server at `http://localhost:3000`
+
+## 📁 Project Structure
 
 ```
-sia-monorepo/
+sia-modern/
 ├── apps/
 │   ├── web/                 # Next.js frontend
 │   │   ├── src/
 │   │   ├── public/
-│   │   ├── next.config.mjs
-│   │   ├── postcss.config.mjs
-│   │   ├── tailwind.config.js
-│   │   ├── tsconfig.json
 │   │   └── package.json
 │   └── functions/           # Firebase Cloud Functions
 │       ├── src/
-│       ├── tsconfig.json
+│       ├── lib/
 │       └── package.json
-├── firebase.json            # Firebase configuration
-├── firestore.rules          # Database security
-├── firestore.indexes.json   # Database indexes
-├── .firebaserc              # Project settings
-├── deploy.sh                # Full deployment
-├── deploy-hosting-only.sh   # Hosting only
-├── deploy-functions.sh      # Functions only
-├── dev.sh                   # Development environment
-├── eslint.config.mjs        # ESLint config
-├── package.json             # Turborepo root
-└── .prettierrc
+├── packages/
+│   └── shared/              # Shared code
+│       ├── src/
+│       │   ├── types.ts     # Common TypeScript types
+│       │   ├── utils.ts     # Utility functions
+│       │   └── firebase.ts  # Firebase configuration
+│       └── package.json
+├── turbo.json              # Turborepo configuration
+├── package.json            # Root package.json with workspaces
+└── firebase.json           # Firebase configuration
 ```
 
-## 🚀 Quick Start
+## 🛠️ Development
 
-### Prerequisites
-- Node.js 18+
-- Firebase CLI: `npm install -g firebase-tools`
+### Frontend (Web App)
+```bash
+# From root directory
+pnpm run --filter=@sia/web dev    # Start development server
+pnpm run --filter=@sia/web build  # Build for production
+pnpm run --filter=@sia/web lint   # Run ESLint
 
-### Development Setup
+# Or navigate to directory
+cd apps/web
+pnpm dev           # Start development server
+pnpm build         # Build for production  
+pnpm lint          # Run ESLint
+```
 
-1. **Install dependencies**:
-   ```bash
-   cd sia-monorepo
-   npm install
-   ```
+### Backend (Functions)
+```bash
+# From root directory
+pnpm run --filter=@sia/functions dev    # TypeScript compiler watch mode
+pnpm run --filter=@sia/functions build  # Build functions
+pnpm run --filter=@sia/functions deploy # Deploy to Firebase
 
-2. **Start development environment**:
-   ```bash
-   npm run dev
-   # Or use ./dev.sh to launch Firebase emulators alongside Next.js
-   ```
+# Or navigate to directory
+cd apps/functions
+pnpm dev           # Start TypeScript compiler in watch mode
+pnpm serve         # Start Firebase emulator
+pnpm deploy        # Deploy to Firebase
+```
 
-3. **Access your app**:
-   - **Next.js**: http://localhost:3000
-   - **Firebase UI**: http://localhost:4000
-   - **Functions**: http://localhost:5001
+### Shared Package
+```bash
+# From root directory
+pnpm run --filter=@sia/shared build  # Build TypeScript
+pnpm run --filter=@sia/shared dev    # Build in watch mode
 
-### Deployment
+# Or navigate to directory
+cd packages/shared
+pnpm build         # Build TypeScript
+pnpm dev           # Build in watch mode
+```
 
-1. **Quick deployment** (hosting only):
-   ```bash
-   ./deploy-hosting-only.sh
-   ```
+## 🔧 Turborepo Commands
 
-2. **Full deployment** (with functions):
-   ```bash
-   ./deploy.sh
-   ```
-
-## 🔧 Configuration Files
-
-### Current Config Files
-- ✅ `eslint.config.mjs` - ESLint 9 flat config (not .json)
-- ✅ `tailwind.config.js` - Tailwind CSS configuration
-- ✅ `next.config.mjs` - Next.js configuration  
-- ✅ `postcss.config.mjs` - PostCSS with Tailwind (working correctly)
-- ✅ `tsconfig.json` - TypeScript configuration
-
-### Firebase Files
-- ✅ `firebase.json` - Services configuration
-- ✅ `firestore.rules` - Database security
-- ✅ `firestore.indexes.json` - Query optimization
-- ✅ `.firebaserc` - Project ID (sia-vision)
-
-## 🎯 Fixed Issues
-
-### ✅ Navigation Menu
-- **Fixed z-index conflicts**: Menu now appears above hero section
-- **Working hamburger**: All navigation items visible on mobile/iPad
-- **Sticky positioning**: Navbar stays visible while scrolling
-- **Proper spacing**: Reduced padding for better mobile experience
-
-### ✅ Favicon Implementation
-- **Correct location**: Moved to `/app` directory for Next.js 13+
-- **SIA branding**: Blue circle with "SIA" text
-- **Multiple formats**: ICO and SVG for browser compatibility
-- **Cache busting**: Proper refresh handling
-
-### ✅ Repository Structure
-- **Main directory**: Now a Turborepo at `sia-monorepo/`
-- **Firebase integration**: All config files in the root directory
-- **Deployment scripts**: Updated for new monorepo paths
-- **Development workflow**: Streamlined setup process
-
-## 📧 Contact Form Features
-
-### Firebase Integration
-- **Cloud Functions**: Server-side form processing
-- **SendGrid**: Professional email delivery
-- **Firestore**: Secure data storage
-- **Validation**: Client and server-side validation
-- **Email Templates**: Admin notifications and user auto-replies
-
-### Security
-- **Server-only access**: Firestore rules prevent client access
-- **Input sanitization**: XSS prevention
-- **Rate limiting**: Built-in Firebase protection
-
-## 🎨 Design System
-
-### Colors
-- **Primary Blue**: #3A86FF (navigation, CTAs)
-- **Accent Teal**: #48D8D0 (highlights, effects)
-- **Secondary Gold**: #FFAB00 (contact form, accents)
-
-### Typography
-- **Headers**: Serif fonts for elegance
-- **Body**: Sans-serif for readability
-- **Navigation**: Clean, medium weight
-
-## 📱 Mobile Experience
-
-### Responsive Design
-- **Mobile-first**: Optimized for touch devices
-- **Sticky navigation**: Always accessible menu
-- **Touch targets**: Minimum 44px for accessibility
-- **Optimized spacing**: Reduced padding for mobile
-
-### Performance
-- **Static export**: Fast CDN delivery
-- **Image optimization**: Automatic WebP conversion
-- **Code splitting**: Route-based optimization
-
-## 🔒 Security & Best Practices
-
-### Firebase Security
-- **Firestore rules**: Server-side only access
-- **Function validation**: Input sanitization
-- **Environment variables**: Secure API key management
-
-### Code Quality
-- **TypeScript strict**: Full type safety
-- **ESLint rules**: Code quality enforcement
-- **Prettier formatting**: Consistent code style
-
-## 📊 Available Scripts
+Turborepo with pnpm allows you to run commands across all packages efficiently:
 
 ```bash
-# Development
-npm run dev          # Start dev server
-./dev.sh            # Start dev + Firebase emulators
+# Run dev for all packages in parallel
+pnpm run dev --parallel
 
-# Build & Deploy  
-npm run build       # Build for production
-./deploy.sh         # Deploy everything
-./deploy-hosting-only.sh  # Deploy hosting only
+# Build all packages (respects dependencies)
+pnpm run build
 
-# Code Quality
-npm run lint        # ESLint checks
-npm run type-check  # TypeScript validation
+# Run linting across all packages
+pnpm run lint
+
+# Type check all packages
+pnpm run type-check
 ```
 
-## 🎯 Next Steps
+## 🌐 Deployment
 
-### Contact Form Activation
-1. **Firebase upgrade**: Upgrade to Blaze plan for Cloud Functions
-2. **SendGrid setup**: Configure API key and verify domains
-3. **Email testing**: Test form submissions end-to-end
+### Frontend Deployment
+```bash
+./deploy-hosting-only.sh    # Deploy only the web app
+```
 
-### Additional Features
-- **Analytics**: Firebase Analytics integration
-- **SEO**: Meta tags and Open Graph optimization
-- **Performance**: Core Web Vitals monitoring
+### Backend Deployment
+```bash
+./deploy-functions.sh       # Deploy only Firebase functions
+```
 
-## 📞 Support
+### Full Deployment
+```bash
+./deploy.sh                 # Deploy both frontend and backend
+```
 
-- **Live Site**: https://sia-vision.web.app
-- **Email**: connect@sia.vision
-- **Firebase Project**: sia-vision
+## 🔥 Firebase Setup
+
+1. Install Firebase CLI: `npm install -g firebase-tools`
+2. Login: `firebase login`
+3. Initialize: `firebase init`
+4. Create `.env.local` in `apps/web/` directory
+5. Add your Firebase configuration to `.env.local`
+
+### Required Environment Variables
+
+Create `apps/web/.env.local`:
+```env
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+```
+
+**Note**: The `.env.local` file is ignored by Git for security. Get your Firebase config from Firebase Console → Project Settings → General → Your apps.
+
+### Runtime Requirements
+
+- **Functions**: Node.js 20 (LTS)
+- **Web App**: Next.js 14 with static export
+- **Authentication**: Google Sign-In enabled in Firebase Console
+
+## 📦 Package Management
+
+This monorepo uses **pnpm workspaces**. Dependencies are managed at the workspace level:
+
+```bash
+# Add dependency to web app
+pnpm add package-name --filter=@sia/web
+
+# Add dependency to functions
+pnpm add package-name --filter=@sia/functions  
+
+# Add dependency to shared package
+pnpm add package-name --filter=@sia/shared
+
+# Add dev dependency to root
+pnpm add -D package-name
+
+# Add dev dependency to specific workspace
+pnpm add -D package-name --filter=@sia/web
+```
+
+## 🎯 Benefits of Monorepo Structure
+
+1. **Code Sharing**: Common types and utilities in `packages/shared`
+2. **Coordinated Deployments**: Deploy frontend and backend together
+3. **Unified Development**: Single command to start all services
+4. **Consistent Dependencies**: Shared package versions across apps
+5. **Better Developer Experience**: Single repository for entire application
+
+## 🔍 Scripts Overview
+
+| Script | Description |
+|--------|-------------|
+| `pnpm run dev` | Start all development servers |
+| `pnpm run --filter=@sia/web dev` | Start web app only (fastest for frontend dev) |  
+| `pnpm run build` | Build all packages |
+| `pnpm run lint` | Lint all packages |
+| `pnpm run type-check` | Type check all packages |
+
+## 🚀 Performance
+
+- **Turborepo Caching**: Intelligent build caching for faster builds
+- **Parallel Execution**: Run tasks across packages simultaneously
+- **Incremental Builds**: Only rebuild what changed
+- **pnpm**: Fast, disk space efficient package manager
+- **Workspace Filtering**: Run commands on specific packages only
+
+## 📚 Tech Stack
+
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS, Material-UI
+- **Backend**: Firebase Cloud Functions, Node.js 20, TypeScript
+- **Database**: Firestore (with email indexing)
+- **Authentication**: Firebase Auth (Google Sign-In)
+- **Build Tool**: Turborepo
+- **Package Manager**: pnpm workspaces
+- **Runtime**: Node.js 20 LTS
+
+## 🤝 Contributing
+
+1. Clone the repository
+2. Install pnpm: `npm install -g pnpm`
+3. Install dependencies: `pnpm install`
+4. Create `.env.local` in `apps/web/` with Firebase config
+5. Start development: `pnpm run --filter=@sia/web dev`
+6. Make your changes
+7. Run tests: `pnpm run lint && pnpm run type-check`
+8. Submit a pull request
+
+## 📄 License
+
+This project is private and proprietary.
 
 ---
 
-**Built for the future of collaborative storytelling with Next.js 14.2.3, Firebase, and modern web technologies.**
+Built with ❤️ using Turborepo and modern web technologies.

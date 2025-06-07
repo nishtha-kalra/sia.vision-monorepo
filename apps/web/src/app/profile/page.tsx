@@ -2,11 +2,11 @@
 import { useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useAuthState } from 'react-firebase-hooks/auth';
+import { useAuthState } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState();
   const router = useRouter();
 
   useEffect(() => {
@@ -16,8 +16,9 @@ export default function ProfilePage() {
   }, [user, loading, router]);
 
   const handleSignOut = async () => {
+    if (!auth) return;
     try {
-      await signOut(auth);
+      await signOut(auth as any);
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);

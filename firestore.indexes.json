@@ -1,9 +1,27 @@
 {
   "indexes": [
     {
-      "collectionGroup": "contactSubmissions",
+      "collectionGroup": "enquiries",
       "queryScope": "COLLECTION",
       "fields": [
+        {
+          "fieldPath": "metadata.ipAddress",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "enquiries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        },
         {
           "fieldPath": "timestamp",
           "order": "DESCENDING"
@@ -11,5 +29,20 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "enquiries",
+      "fieldPath": "email",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING", 
+          "queryScope": "COLLECTION"
+        }
+      ]
+    }
+  ]
 } 

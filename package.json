@@ -1,14 +1,18 @@
 {
   "name": "sia-monorepo",
   "private": true,
-  "workspaces": ["apps/*"],
+
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "type-check": "turbo run type-check"
+    "type-check": "turbo run type-check",
+    "deploy": "./deploy.sh",
+    "deploy:web": "./deploy-hosting-only.sh",
+    "deploy:functions": "./deploy-functions.sh"
   },
   "devDependencies": {
     "turbo": "^1.11.3"
-  }
+  },
+  "packageManager": "pnpm@8.15.0"
 }
