@@ -57,6 +57,9 @@ firebase-debug.log*
 firebase-debug.*.log
 .runtimeconfig.json
 
+# Firebase Auth Emulator Configuration (contains sensitive user data)
+auth_config.json
+
 # Functions
 apps/functions/node_modules/
 apps/functions/lib/
