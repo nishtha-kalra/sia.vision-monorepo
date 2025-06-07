@@ -273,7 +273,12 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
   // Determine auth providers from user data
   const authProviders = user.providerData.map(provider => provider.providerId);
   
-  // Initialize profile with empty wallets - wallets will be created after phone verification
+  // Check if this is a Google sign-in (or other OAuth provider)
+  const isOAuthProvider = authProviders.some(provider => 
+    provider === 'google.com' || provider === 'apple.com' || provider === 'facebook.com'
+  );
+
+  // Initialize profile with empty wallets - wallets will be created ONLY after phone verification
   const profile = {
     displayName: user.displayName,
     email: user.email,
@@ -281,15 +286,12 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     authProviders: authProviders,
     wallets: { 
-      ethereum: null,           // Primary EVM wallet (Ethereum, Base, Arbitrum, etc.)
-      solana: null,            // Solana wallet
-      stellar: null,           // Stellar wallet  
-      cosmos: null,            // Cosmos wallet
-      sui: null,               // Sui wallet
-      tron: null,              // Tron wallet
-      linkedWallets: []        // External/imported wallets
+      ethereum: null,
+      solana: null,
+      linkedWallets: []
     },
     phoneNumber: { number: null, isVerified: false },
+    // Don't set walletsStatus initially - only set when phone verification triggers wallet creation
   };
 
   try {
@@ -297,13 +299,13 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
     await userRef.set(profile, { merge: true });
     functions.logger.info("User document created", { 
       uid: user.uid, 
-      providers: authProviders 
+      providers: authProviders,
+      isOAuth: isOAuthProvider
     });
 
-    // Note: Wallets are now created after phone verification to ensure
-    // they're linked to verified phone numbers as the primary identifier
-    functions.logger.info("User created - wallets will be created after phone verification", { 
-      uid: user.uid 
+    functions.logger.info("User created - wallets will ONLY be created after phone verification", { 
+      uid: user.uid,
+      isOAuth: isOAuthProvider
     });
     
   } catch (error) {
@@ -320,12 +322,12 @@ export const onPhoneVerified = functions.https.onCall(
   async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError(
-        "unauthenticated",
+        "unauthenticated", 
         "Authentication required"
       );
     }
 
-    const uid = context.auth.uid;
+    const uid = data.uid || context.auth.uid;
     const phoneNumber = data.phoneNumber as string;
 
     if (!phoneNumber) {
@@ -336,98 +338,255 @@ export const onPhoneVerified = functions.https.onCall(
     }
 
     const db = admin.firestore();
-    const userRef = db.collection("users").doc(uid);
-    const phoneIndexRef = db.collection("phoneIndex").doc(phoneNumber);
 
     try {
-      // Check if phone number already exists for another user
-      const phoneDoc = await phoneIndexRef.get();
-      if (phoneDoc.exists && phoneDoc.data()?.uid !== uid) {
-        throw new functions.https.HttpsError(
-          "already-exists",
-          "This phone number is already associated with another account"
-        );
-      }
-
-      // Update user profile and phone index atomically
-      await db.runTransaction(async (transaction) => {
-        // Update user with verified phone number
-        transaction.update(userRef, {
-          'phoneNumber.number': phoneNumber,
-          'phoneNumber.isVerified': true,
-          'walletsStatus': 'creating', // Track wallet creation status
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        // Create/update phone number index
-        transaction.set(phoneIndexRef, {
-          uid: uid,
-          phoneNumber: phoneNumber,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-      });
-
-      functions.logger.info("Phone number verified and indexed", { 
+      functions.logger.info("Phone verification started", { 
         uid, 
-        phoneNumber: phoneNumber.substring(0, 6) + "***"
+        phoneNumber: phoneNumber.substring(0, 6) + "***" 
       });
 
-      // Trigger async wallet creation (non-blocking)
-      createWalletsAsync(uid, phoneNumber).catch((error) => {
-        functions.logger.error("Async wallet creation failed", { uid, error });
+      // Update user document with phone verification
+      const userRef = db.collection("users").doc(uid);
+      await userRef.set({
+        phoneNumber: {
+          number: phoneNumber,
+          isVerified: true,
+          verifiedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        walletsStatus: 'creating',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      // Index phone number for lookups
+      const phoneIndexRef = db.collection("phoneIndex").doc(phoneNumber);
+      await phoneIndexRef.set({
+        uid: uid,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      return { success: true, message: "Phone verified successfully. Wallets are being created." };
+      functions.logger.info("Phone verification completed", { 
+        uid, 
+        phoneNumber: phoneNumber.substring(0, 6) + "***" 
+      });
+
+      // Start wallet creation asynchronously (don't await)
+      createWalletsAsync(uid, phoneNumber);
+
+      return { success: true, message: "Phone verified and wallet creation started" };
 
     } catch (error) {
-      functions.logger.error("Error in phone verification flow", error);
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
+      functions.logger.error("Phone verification failed", { 
+        uid, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+      
       throw new functions.https.HttpsError(
         "internal",
-        "Failed to verify phone number"
+        "Phone verification failed"
       );
     }
   }
 );
 
-// Async function to create wallets without blocking phone verification
+// Helper function to create a single wallet with idempotency
+async function createSingleWallet(client: PrivyClient, chainType: string, uid: string, phoneNumber: string): Promise<{address: string, id: string} | null> {
+  try {
+    functions.logger.info(`Creating ${chainType} wallet`, { uid, chainType });
+    
+    // Use phone number + chain type as idempotency key to prevent duplicates
+    const idempotencyKey = `${phoneNumber}-${chainType}`;
+    
+    const result = await client.walletApi.create({
+      chainType: chainType as any,
+      idempotencyKey: idempotencyKey
+    });
+    
+    if (result?.address && result?.id) {
+      functions.logger.info(`Successfully created ${chainType} wallet`, { 
+        uid, 
+        chainType, 
+        walletId: result.id,
+        address: result.address.substring(0, 8) + "..."
+      });
+      return { address: result.address, id: result.id };
+    }
+    
+    throw new Error(`No address returned for ${chainType}`);
+  } catch (error) {
+    functions.logger.error(`Failed to create ${chainType} wallet`, {
+      uid,
+      chainType,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
+}
+
+// Simplified async function to create wallets - idempotent and robust
 async function createWalletsAsync(uid: string, phoneNumber: string) {
   const db = admin.firestore();
   const userRef = db.collection("users").doc(uid);
+  const walletsRef = db.collection("wallets").doc(uid);
 
   try {
-    // Add small delay to ensure user sees immediate success feedback
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    functions.logger.info("Starting wallet creation", { uid, phoneNumber: phoneNumber.substring(0, 6) + "***" });
 
-    functions.logger.info("Starting async wallet creation", { 
-      uid, 
+    // Check if we already have wallets for this user (idempotent check)
+    const [userDoc, walletDoc] = await Promise.all([
+      userRef.get(),
+      walletsRef.get()
+    ]);
+
+    const userData = userDoc.data();
+    const existingWallets = userData?.wallets || {};
+    const walletData = walletDoc.data();
+
+    // All supported Privy wallet types - create them all
+    const allSupportedChains = ['ethereum', 'solana', 'stellar', 'cosmos', 'sui', 'tron'];
+    const missingChains = allSupportedChains.filter(chain => !existingWallets[chain] && !walletData?.[chain]);
+
+    if (missingChains.length === 0) {
+      functions.logger.info("All wallets already exist", { uid });
+      await userRef.update({
+        'walletsStatus': 'completed',
+        'walletsCreatedAt': admin.firestore.FieldValue.serverTimestamp()
+      });
+      return;
+    }
+
+    // Set status to creating
+    await userRef.update({ 'walletsStatus': 'creating' });
+
+    // Initialize Privy client
+    const appId = functions.config().privy.app_id;
+    const appSecret = functions.config().privy.app_secret;
+    const client = new PrivyClient(appId, appSecret);
+
+    const newWallets: Record<string, any> = {};
+    const userUpdates: Record<string, any> = {};
+    const results: Array<{chain: string, success: boolean}> = [];
+
+    // Create all missing wallets in parallel for better performance
+    const creationPromises = missingChains.map(async (chainType) => {
+      const result = await createSingleWallet(client, chainType, uid, phoneNumber);
+      
+      if (result) {
+        // Prepare wallet data
+        newWallets[chainType] = {
+          address: result.address,
+          walletId: result.id,
+          chainType,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          linkedPhoneNumber: phoneNumber,
+          userId: uid
+        };
+
+        // Prepare user updates
+        userUpdates[`wallets.${chainType}`] = result.address;
+        
+        results.push({ chain: chainType, success: true });
+      } else {
+        results.push({ chain: chainType, success: false });
+      }
+    });
+
+    // Wait for all wallet creations to complete
+    await Promise.all(creationPromises);
+
+    functions.logger.info("Wallet creation completed", {
+      uid,
+      successfulWallets: Object.keys(newWallets),
+      totalRequested: missingChains.length,
+      totalCreated: Object.keys(newWallets).length,
+      results: results
+    });
+
+    // Update both collections atomically
+    const batch = db.batch();
+
+    if (Object.keys(newWallets).length > 0) {
+      try {
+        // Update or create wallets document
+        if (walletDoc.exists) {
+          batch.update(walletsRef, {
+            ...newWallets,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          functions.logger.info("Updating existing wallets document", { uid });
+        } else {
+          batch.set(walletsRef, {
+            ...newWallets,
+            userId: uid,
+            phoneNumber: phoneNumber,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          functions.logger.info("Creating new wallets document", { uid });
+        }
+
+        // Update user document
+        batch.update(userRef, {
+          ...userUpdates,
+          walletsStatus: 'completed',
+          walletsCreatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        functions.logger.info("Prepared batch update", {
+          uid,
+          walletsToUpdate: Object.keys(newWallets),
+          userUpdates: Object.keys(userUpdates)
+        });
+
+        await batch.commit();
+        
+        functions.logger.info("Database update successful", {
+          uid,
+          createdWallets: Object.keys(newWallets),
+          totalCreated: Object.keys(newWallets).length
+        });
+        
+      } catch (batchError) {
+        functions.logger.error("Batch commit failed", {
+          uid,
+          error: batchError instanceof Error ? batchError.message : String(batchError),
+          walletsToUpdate: Object.keys(newWallets)
+        });
+        throw batchError;
+      }
+    } else {
+      // No wallets created - mark as failed
+      batch.update(userRef, {
+        walletsStatus: 'failed',
+        walletsError: 'Failed to create any wallets'
+      });
+      
+      try {
+        await batch.commit();
+        functions.logger.error("No wallets created - marked as failed", { uid });
+      } catch (batchError) {
+        functions.logger.error("Failed to update failure status", {
+          uid,
+          error: batchError instanceof Error ? batchError.message : String(batchError)
+        });
+      }
+    }
+
+    functions.logger.info("Wallet creation process completed", { 
+      uid,
+      finalSuccessCount: Object.keys(newWallets).length,
+      finalFailureCount: missingChains.length - Object.keys(newWallets).length,
       phoneNumber: phoneNumber.substring(0, 6) + "***"
     });
 
-    // Create wallets
-    await createPrivyUserWithWallets(uid, phoneNumber);
-    
-    // Update wallet status to completed
-    await userRef.update({
-      'walletsStatus': 'completed',
-      'walletsCreatedAt': admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    functions.logger.info("Async wallet creation completed", { uid });
-
   } catch (error) {
-    functions.logger.error("Error in async wallet creation", { uid, error });
-    
-    // Update status to failed
-    await userRef.update({
-      'walletsStatus': 'failed',
-      'walletsError': typeof error === "object" ? (error as any).message : String(error)
-    }).catch((updateError) => {
-      functions.logger.error("Failed to update wallet status", { uid, updateError });
+    functions.logger.error("Wallet creation failed", {
+      uid,
+      error: error instanceof Error ? error.message : String(error)
     });
+
+    await userRef.update({
+      walletsStatus: 'failed',
+      walletsError: error instanceof Error ? error.message : String(error)
+    }).catch(e => functions.logger.error("Failed to update error status", e));
   }
 }
 
@@ -462,59 +621,6 @@ export const checkPhoneNumber = functions.https.onCall(
     }
   }
 );
-
-// Helper function to create Privy user and wallets linked to phone number
-async function createPrivyUserWithWallets(uid: string, phoneNumber: string) {
-  const chainsToCreate = [
-    'ethereum', 'solana'
-  ];
-  
-  const appId = functions.config().privy.app_id;
-  const appSecret = functions.config().privy.app_secret;
-  const client = new PrivyClient(appId, appSecret);
-  
-  const db = admin.firestore();
-  const userRef = db.collection("users").doc(uid);
-  const updates: Record<string, string> = {};
-
-  functions.logger.info("Creating ONLY Ethereum and Solana wallets for user with phone verification", { 
-    uid, 
-    phoneNumber: phoneNumber.substring(0, 6) + "***"
-  });
-
-  // Create standalone wallets for Ethereum and Solana
-  for (const chainType of chainsToCreate) {
-    try {
-      const {address} = await client.walletApi.create({
-        chainType: chainType as any
-      });
-
-      updates[`wallets.${chainType}`] = address;
-      functions.logger.info(`Created ${chainType} wallet for user ${uid}`, { 
-        address: address,
-        phoneNumber: phoneNumber.substring(0, 6) + "***"
-      });
-
-      // Add delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-    } catch (error) {
-      functions.logger.error(`Error creating ${chainType} wallet for user ${uid}`, error);
-      // Continue with other wallets even if one fails
-    }
-  }
-
-  // Update all created wallets at once
-  if (Object.keys(updates).length > 0) {
-    await userRef.update(updates);
-    functions.logger.info(`Updated user with ${Object.keys(updates).length} wallets`, { 
-      uid, 
-      phoneNumber: phoneNumber.substring(0, 6) + "***"
-    });
-  } else {
-    functions.logger.warn("No wallets were created successfully", { uid });
-  }
-}
 
 export const provisionUserWallet = functions.https.onCall(
   async (data, context) => {

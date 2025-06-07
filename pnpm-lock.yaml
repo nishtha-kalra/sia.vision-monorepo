@@ -87,6 +87,9 @@ importers:
       next:
         specifier: 14.2.3
         version: 14.2.3(react-dom@18.3.1)(react@18.3.1)
+      node-ipinfo:
+        specifier: ^4.0.1
+        version: 4.0.1
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -5361,6 +5364,11 @@ packages:
       yallist: 4.0.0
     dev: false
 
+  /lru-cache@7.18.3:
+    resolution: {integrity: sha512-jumlc0BIUrS3qJGgIkWZsyfAM7NCWiBcCDhnd+3NNM5KbBmLTgHVfWBcg6W+rLUsIpzpERPsvwUP7CckAQSOoA==}
+    engines: {node: '>=12'}
+    dev: false
+
   /lru-memoizer@2.3.0:
     resolution: {integrity: sha512-GXn7gyHAMhO13WSKrIiNfztwxodVsP8IoZ3XfrJV4yH2x0/OeTO/FIaAHTY5YekdGgW94njfuKmyyt1E0mR6Ug==}
     dependencies:
@@ -5582,6 +5590,17 @@ packages:
     resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
     hasBin: true
     requiresBuild: true
+    dev: false
+
+  /node-ipinfo@4.0.1:
+    resolution: {integrity: sha512-L6SQkyaERknZPtpOdZCh2pxH4atPnolhZdD3tbQJK9tsQinSHjpe8bIIJ5Vh+LcSBlZNjWPXGKdqb4iWRfGBHA==}
+    engines: {node: '>=14'}
+    dependencies:
+      lru-cache: 7.18.3
+      node-fetch: 2.7.0
+      subnet-check: 1.10.1
+    transitivePeerDependencies:
+      - encoding
     dev: false
 
   /node-releases@2.0.19:
@@ -6628,6 +6647,11 @@ packages:
 
   /stylis@4.2.0:
     resolution: {integrity: sha512-Orov6g6BB1sDfYgzWfTHDOxamtX1bE/zo104Dh9e6fqJ3PooipYyfJ0pUmrZO2wAvO8YbEyeFrkV91XTsGMSrw==}
+    dev: false
+
+  /subnet-check@1.10.1:
+    resolution: {integrity: sha512-e8lXZ9ICcG42fFsMDZO5TTZ3uS2436b5hnx3uS4Z3XkAFuDLa5R3Pvt9lYhewKm/vCd48t14v0jFaSmVYOT2Kg==}
+    engines: {node: '>=4.0.0'}
     dev: false
 
   /sucrase@3.35.0:

@@ -3,14 +3,13 @@ import { useState } from 'react';
 import { 
   RecaptchaVerifier, 
   signInWithPhoneNumber, 
-  linkWithPhoneNumber,
   PhoneAuthProvider,
   linkWithCredential,
   signInWithCredential,
   User
 } from 'firebase/auth';
 import { auth, db, functions } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
 interface PhoneAuthState {
@@ -30,7 +29,7 @@ export const usePhoneAuth = () => {
     verificationId: null
   });
 
-  // Initialize reCAPTCHA
+  // Initialize reCAPTCHA - completely invisible with no popups
   const initializeRecaptcha = () => {
     if (!auth) return null;
     
@@ -55,6 +54,7 @@ export const usePhoneAuth = () => {
       
       // Make container completely invisible and out of flow
       container.style.cssText = `
+        display: none !important;
         position: fixed !important;
         top: -10000px !important;
         left: -10000px !important;
@@ -67,19 +67,20 @@ export const usePhoneAuth = () => {
         overflow: hidden !important;
       `;
 
-      // Create invisible reCAPTCHA verifier
+      // Create invisible reCAPTCHA verifier with proper configuration
       const recaptchaVerifier = new RecaptchaVerifier(auth as any, 'recaptcha-container', {
         size: 'invisible',
-        callback: () => {
-          console.log('reCAPTCHA solved');
+        callback: (response: any) => {
+          // reCAPTCHA solved - no popup should appear
+          console.log('reCAPTCHA solved silently');
         },
         'expired-callback': () => {
-          console.log('reCAPTCHA expired');
-          // Clear the verifier on expiration
-          if ((window as any).recaptchaVerifier) {
-            (window as any).recaptchaVerifier.clear();
-            (window as any).recaptchaVerifier = null;
-          }
+          // Token expired - no popup
+          console.log('reCAPTCHA token expired');
+        },
+        'error-callback': (error: any) => {
+          // Error occurred - no popup  
+          console.log('reCAPTCHA error (silent):', error);
         }
       });
 
@@ -103,15 +104,13 @@ export const usePhoneAuth = () => {
         throw new Error('Failed to initialize reCAPTCHA');
       }
 
-      // Format phone number (ensure it starts with country code)
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber}`;
-
-      const confirmationResult = await signInWithPhoneNumber(auth as any, formattedPhone, recaptchaVerifier);
+      // The phone number is already formatted in the component
+      const confirmationResult = await signInWithPhoneNumber(auth as any, phoneNumber, recaptchaVerifier);
       
       setState(prev => ({
         ...prev,
         step: 'verification',
-        phoneNumber: formattedPhone,
+        phoneNumber: phoneNumber,
         verificationId: confirmationResult.verificationId,
         loading: false
       }));
@@ -140,6 +139,14 @@ export const usePhoneAuth = () => {
       const credential = PhoneAuthProvider.credential(state.verificationId, code);
       const result = await signInWithCredential(auth as any, credential);
       
+      // After successful sign-in, trigger wallet creation asynchronously (non-blocking)
+      if (functions && result.user) {
+        const onPhoneVerified = httpsCallable(functions, 'onPhoneVerified');
+        // Don't await this - let it run in background
+        onPhoneVerified({ uid: result.user.uid, phoneNumber: result.user.phoneNumber })
+          .catch(error => console.error('Background wallet creation failed:', error));
+      }
+
       setState(prev => ({ ...prev, step: 'completed', loading: false }));
       return result;
     } catch (error: any) {
@@ -154,9 +161,9 @@ export const usePhoneAuth = () => {
   };
 
   // Link phone number to existing user
-  const linkPhoneToUser = async (user: User, phoneNumber: string, verificationCode: string) => {
-    if (!auth || !state.verificationId) {
-      throw new Error('No verification ID available');
+  const linkPhoneToUser = async (user: User, verificationCode: string) => {
+    if (!auth || !state.verificationId || !state.phoneNumber) {
+      throw new Error('No verification ID or phone number available');
     }
 
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -165,10 +172,29 @@ export const usePhoneAuth = () => {
       const credential = PhoneAuthProvider.credential(state.verificationId, verificationCode);
       await linkWithCredential(user, credential);
       
-      // Call backend function to update user (without blocking for wallet creation)
+      // Update user document with phone verification
+      if (db) {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          'phoneNumber.number': state.phoneNumber,
+          'phoneNumber.isVerified': true,
+          'phoneNumber.verifiedAt': new Date(),
+          updatedAt: new Date()
+        });
+      }
+      
+      // Call backend function to create wallets (WAIT for it to complete)
       if (functions) {
+        console.log('Calling onPhoneVerified with:', { uid: user.uid, phoneNumber: state.phoneNumber });
         const onPhoneVerified = httpsCallable(functions, 'onPhoneVerified');
-        await onPhoneVerified({ phoneNumber });
+        
+        try {
+          const result = await onPhoneVerified({ uid: user.uid, phoneNumber: state.phoneNumber });
+          console.log('onPhoneVerified successful:', result);
+        } catch (functionError) {
+          console.error('onPhoneVerified failed but continuing:', functionError);
+          // Don't throw - let the user continue to profile even if wallet creation fails
+        }
       }
 
       setState(prev => ({ ...prev, step: 'completed', loading: false }));
@@ -247,4 +273,4 @@ export const usePhoneAuth = () => {
     mergeAccountsByPhone,
     reset
   };
-}; 
+};

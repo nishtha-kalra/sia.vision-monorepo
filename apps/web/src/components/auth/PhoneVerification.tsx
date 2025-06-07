@@ -115,7 +115,7 @@ export const PhoneVerification = ({ user, isLinking = false, onSuccess, onCancel
     try {
       if (isLinking && user) {
         // Link phone to existing user
-        await phoneAuth.linkPhoneToUser(user, phoneAuth.phoneNumber, verificationCode);
+        await phoneAuth.linkPhoneToUser(user, verificationCode);
       } else {
         // Sign in with phone (new user or standalone phone auth)
         await phoneAuth.verifyOTP(verificationCode);

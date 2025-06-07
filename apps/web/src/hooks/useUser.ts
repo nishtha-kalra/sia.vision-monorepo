@@ -13,6 +13,8 @@ interface UserProfile {
     isVerified: boolean;
   } | null;
   authProviders?: string[];
+  walletsStatus?: 'creating' | 'completed' | 'failed';
+  walletsError?: string;
   wallets?: {
     ethereum?: string | null;
     solana?: string | null;
@@ -20,6 +22,7 @@ interface UserProfile {
     cosmos?: string | null;
     sui?: string | null;
     tron?: string | null;
+    story?: string | null;
     linkedWallets?: string[];
   };
 }
