@@ -12,14 +12,14 @@ if [ ! -f "firebase.json" ]; then
 fi
 
 # Check if functions directory exists
-if [ ! -d "functions" ]; then
+if [ ! -d "apps/functions" ]; then
     echo "❌ Error: functions directory not found."
     exit 1
 fi
 
 # Navigate to functions directory and install dependencies
 echo "📦 Installing function dependencies..."
-cd functions
+cd apps/functions
 npm install
 
 # Build the functions

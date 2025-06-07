@@ -7,7 +7,7 @@ set -e
 
 # Build the Next.js app 
 echo "📦 Building Next.js app..."
-npm run build
+pnpm --filter @sia/web run build
 
 # Deploy only hosting (no functions)
 echo "🔥 Deploying hosting to Firebase..."

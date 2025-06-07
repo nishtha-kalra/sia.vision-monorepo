@@ -71,7 +71,8 @@ export function Navbar() {
   const router = useRouter();
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (user) => {
+    if (!auth) return;
+    return onAuthStateChanged(auth as any, (user) => {
       setUser(user);
     });
   }, []);

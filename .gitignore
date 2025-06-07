@@ -10,6 +10,10 @@
 !.yarn/releases
 !.yarn/versions
 
+# dependencies (monorepo)
+apps/*/node_modules/
+packages/*/node_modules/
+
 # testing
 /coverage
 
@@ -17,8 +21,18 @@
 /.next/
 /out/
 
+# next.js (monorepo - web app specific)
+apps/web/.next/
+apps/web/out/
+
 # production
 /build
+
+# build outputs (monorepo)
+apps/*/build/
+apps/*/dist/
+packages/*/build/
+packages/*/dist/
 
 # misc
 .DS_Store
@@ -43,11 +57,17 @@ firebase-debug.log*
 firebase-debug.*.log
 .runtimeconfig.json
 
+# Firebase Auth Emulator Configuration (contains sensitive user data)
+auth_config.json
+
 # Functions
-functions/node_modules/
-functions/lib/
-functions/.env
-functions/.env.local
+apps/functions/node_modules/
+apps/functions/lib/
+apps/functions/.env
+apps/functions/.env.local
+
+# Turbo
+.turbo
 
 # Logs
 logs

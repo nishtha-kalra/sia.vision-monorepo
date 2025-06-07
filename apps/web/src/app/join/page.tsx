@@ -17,7 +17,9 @@ export default function JoinPage() {
   const router = useRouter();
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
+    if (!auth) return;
+    
+    return onAuthStateChanged(auth as any, (u) => {
       setUser(u);
       setLoading(false);
       if (u) {
@@ -27,10 +29,12 @@ export default function JoinPage() {
   }, [router]);
 
   const handleGoogleSignIn = async () => {
+    if (!auth) return;
+    
     setSigningIn(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(auth as any, provider);
     } catch (error: any) {
       console.error('Error signing in with Google:', error);
     }
