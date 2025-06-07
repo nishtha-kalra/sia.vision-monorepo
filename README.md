@@ -175,6 +175,15 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
 
 **Note**: The `.env.local` file is ignored by Git for security. Get your Firebase config from Firebase Console → Project Settings → General → Your apps.
 
+### Configure Privy Secrets for Functions
+
+Set your Privy credentials using the Firebase CLI:
+
+```bash
+firebase functions:config:set privy.app_secret="YOUR_PRIVY_APP_SECRET"
+firebase functions:config:set privy.app_id="YOUR_PRIVY_APP_ID"
+```
+
 ### Runtime Requirements
 
 - **Functions**: Node.js 20 (LTS)

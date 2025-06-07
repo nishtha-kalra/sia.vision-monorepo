@@ -2,18 +2,18 @@
 import { useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useAuthState } from '@/hooks/useAuth';
+import { useUser } from '@/hooks/useUser';
 import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
-  const [user, loading] = useAuthState();
+  const { authUser: user, profile, loading, authLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/join');
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
   const handleSignOut = async () => {
     if (!auth) return;
@@ -25,7 +25,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-creative-tech-primary"></div>
@@ -37,7 +37,7 @@ export default function ProfilePage() {
     return null;
   }
 
-  const memberSince = user.metadata.creationTime ? 
+  const memberSince = user?.metadata.creationTime ?
     new Date(user.metadata.creationTime).toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long' 
@@ -101,6 +101,27 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Wallet Section */}
+              <div className="mb-8">
+                <h2 className="text-xl font-bold text-creative-tech-on-surface mb-4">My Wallet</h2>
+                {profile?.wallets?.primaryEVM ? (
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <p className="text-gray-600">
+                      {profile.wallets.primaryEVM.slice(0, 6)}...
+                      {profile.wallets.primaryEVM.slice(-4)}
+                    </p>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(profile.wallets!.primaryEVM!)}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                ) : (
+                  <p>Your secure wallet is being provisioned...</p>
+                )}
               </div>
 
               {/* Actions */}

@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { PrivyClient } from "@privy-io/server-auth";
 import cors from "cors";
 import sgMail from "@sendgrid/mail";
 
@@ -260,6 +261,84 @@ function generateAdminEmailHtml(data: EnquiryData, enquiryId: string): string {
     </div>
   `;
 }
+
+// ----------------------
+// User Management
+// ----------------------
+
+export const onUserCreate = functions.auth.user().onCreate(async (user) => {
+  const db = admin.firestore();
+  const userRef = db.collection("users").doc(user.uid);
+  const profile = {
+    displayName: user.displayName,
+    email: user.email,
+    photoURL: user.photoURL,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    authProviders: { google: user.email },
+    wallets: { primaryEVM: null, linkedWallets: [], solana: null },
+    phoneNumber: { number: null, isVerified: false },
+  };
+
+  try {
+    await userRef.set(profile, { merge: true });
+    functions.logger.info("User document created", { uid: user.uid });
+  } catch (error) {
+    functions.logger.error("Error creating user document", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Failed to create user document"
+    );
+  }
+});
+
+export const provisionUserWallet = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Authentication required"
+      );
+    }
+
+    const uid = data.uid as string;
+    if (!uid) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "UID is required"
+      );
+    }
+
+    const db = admin.firestore();
+    const userRef = db.collection("users").doc(uid);
+
+    try {
+      const snapshot = await userRef.get();
+      const userData = snapshot.data() || {};
+      if (userData.wallets?.primaryEVM) {
+        return { address: userData.wallets.primaryEVM };
+      }
+
+      const appId = functions.config().privy.app_id;
+      const appSecret = functions.config().privy.app_secret;
+      const client = new PrivyClient(appId, appSecret);
+
+      const wallet = await client.createWallet(uid);
+
+      await userRef.update({
+        "wallets.primaryEVM": wallet.address,
+      });
+
+      return { address: wallet.address };
+    } catch (error) {
+      functions.logger.error("Error provisioning wallet", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to provision wallet",
+        typeof error === "object" ? (error as any).message : String(error)
+      );
+    }
+  }
+);
 
 // Helper function to generate user confirmation email HTML
 function generateUserEmailHtml(data: EnquiryData): string {
