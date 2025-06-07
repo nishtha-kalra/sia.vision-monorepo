@@ -8,8 +8,19 @@ interface UserProfile {
   displayName?: string | null;
   email?: string | null;
   photoURL?: string | null;
+  phoneNumber?: {
+    number: string;
+    isVerified: boolean;
+  } | null;
+  authProviders?: string[];
   wallets?: {
-    primaryEVM?: string | null;
+    ethereum?: string | null;
+    solana?: string | null;
+    stellar?: string | null;
+    cosmos?: string | null;
+    sui?: string | null;
+    tron?: string | null;
+    linkedWallets?: string[];
   };
 }
 
@@ -31,21 +42,44 @@ export function useUser() {
       setProfile(data);
       setLoading(false);
 
-      if (data && data.wallets?.primaryEVM === null && functions) {
-        try {
-          const provision = httpsCallable(functions as any, 'provisionUserWallet');
-          const result = await provision({ uid: authUser.uid });
-          if (result && typeof result === 'object' && 'data' in result) {
-            // nothing to do - snapshot listener will update
-          }
-        } catch (err) {
-          console.error('Wallet provisioning failed', err);
-        }
-      }
+      // Wallets are now auto-created on user creation, no need to provision here
     });
 
     return unsub;
   }, [authUser]);
 
-  return { authUser, authLoading, profile, loading } as const;
+  const provisionWallet = async (chainType: string) => {
+    if (!authUser || !functions) return null;
+    
+    try {
+      const provision = httpsCallable(functions as any, 'provisionUserWallet');
+      const result = await provision({ uid: authUser.uid, chainType });
+      return result.data;
+    } catch (err) {
+      console.error(`Failed to provision ${chainType} wallet:`, err);
+      throw err;
+    }
+  };
+
+  const provisionAllWallets = async () => {
+    if (!authUser || !functions) return null;
+    
+    try {
+      const provision = httpsCallable(functions as any, 'provisionAllWallets');
+      const result = await provision({ uid: authUser.uid });
+      return result.data;
+    } catch (err) {
+      console.error('Failed to provision all wallets:', err);
+      throw err;
+    }
+  };
+
+  return { 
+    authUser, 
+    authLoading, 
+    profile, 
+    loading,
+    provisionWallet,
+    provisionAllWallets
+  } as const;
 }

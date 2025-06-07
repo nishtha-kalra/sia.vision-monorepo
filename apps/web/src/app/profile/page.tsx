@@ -1,19 +1,107 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useUser } from '@/hooks/useUser';
 import { useRouter } from 'next/navigation';
+import { TokenETH, TokenSOL } from '@web3icons/react';
+
+// Story Protocol icon using the provided SVG
+const StoryProtocolIcon = ({ size = 24, className = "" }: { size?: number; className?: string }) => (
+  <img
+    src="/story-protocol.svg"
+    alt="Story Protocol"
+    width={size}
+    height={size}
+    className={className}
+  />
+);
+
+
+
+interface WalletDisplayProps {
+  name: string;
+  icon: React.ReactNode;
+  address?: string | null;
+  isLoading?: boolean;
+  note?: string;
+}
+
+const WalletDisplay = ({ name, icon, address, isLoading, note }: WalletDisplayProps) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (address) {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
+  return (
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+      <div className="flex items-center space-x-3">
+        <div className="flex-shrink-0">
+          {icon}
+        </div>
+        <div>
+          <p className="font-medium text-gray-900">{name}</p>
+          {note && (
+            <p className="text-xs text-blue-600 mb-1">{note}</p>
+          )}
+          {isLoading ? (
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-gray-500">Creating wallet...</span>
+            </div>
+          ) : address ? (
+            <p className="text-sm text-gray-600 font-mono">
+              {formatAddress(address)}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-400">Not created</p>
+          )}
+        </div>
+      </div>
+      
+      {address && !isLoading && (
+        <button
+          onClick={handleCopy}
+          className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      )}
+    </div>
+  );
+};
 
 export default function ProfilePage() {
   const { authUser: user, profile, loading, authLoading } = useUser();
   const router = useRouter();
+  const [walletsLoading, setWalletsLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/join');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    // Check if wallets are being created (no wallets exist yet)
+    if (profile && (!profile.wallets || Object.keys(profile.wallets).length === 0)) {
+      setWalletsLoading(true);
+      // Set a timeout to stop loading after reasonable time
+      const timeout = setTimeout(() => setWalletsLoading(false), 30000);
+      return () => clearTimeout(timeout);
+    } else {
+      setWalletsLoading(false);
+    }
+  }, [profile]);
 
   const handleSignOut = async () => {
     if (!auth) return;
@@ -27,8 +115,11 @@ export default function ProfilePage() {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-creative-tech-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-creative-tech-surface via-white to-creative-tech-surface/50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-creative-tech-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your profile...</p>
+        </div>
       </div>
     );
   }
@@ -42,6 +133,28 @@ export default function ProfilePage() {
       year: 'numeric', 
       month: 'long' 
     }) : 'Unknown';
+
+  // Define supported wallets with icons
+  const supportedWallets = [
+    {
+      key: 'ethereum' as const,
+      name: 'Ethereum',
+      icon: <TokenETH size={32} variant="branded" />,
+      address: profile?.wallets?.ethereum
+    },
+    {
+      key: 'story' as const,
+      name: 'Story Protocol',
+      icon: <StoryProtocolIcon size={32} className="" />,
+      address: profile?.wallets?.ethereum
+    },
+    {
+      key: 'solana' as const,
+      name: 'Solana',
+      icon: <TokenSOL size={32} variant="branded" />,
+      address: profile?.wallets?.solana
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-creative-tech-surface via-white to-creative-tech-surface/50">
@@ -103,25 +216,31 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Wallet Section */}
+              {/* Wallets Section */}
               <div className="mb-8">
-                <h2 className="text-xl font-bold text-creative-tech-on-surface mb-4">My Wallet</h2>
-                {profile?.wallets?.primaryEVM ? (
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-600">
-                      {profile.wallets.primaryEVM.slice(0, 6)}...
-                      {profile.wallets.primaryEVM.slice(-4)}
-                    </p>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(profile.wallets!.primaryEVM!)}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                ) : (
-                  <p>Your secure wallet is being provisioned...</p>
-                )}
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-creative-tech-on-surface">My Wallets</h2>
+                  {walletsLoading && (
+                    <div className="flex items-center text-sm text-blue-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      Auto-creating wallets...
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                  {supportedWallets.map((wallet) => (
+                    <WalletDisplay
+                      key={wallet.key}
+                      name={wallet.name}
+                      icon={wallet.icon}
+                      address={wallet.address}
+                      isLoading={walletsLoading && !wallet.address}
+                    />
+                  ))}
+                </div>
+
+
               </div>
 
               {/* Actions */}
