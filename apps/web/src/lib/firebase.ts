@@ -1,6 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
+import { getFunctions, Functions } from 'firebase/functions';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -26,13 +27,15 @@ const isFirebaseConfigValid =
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
+let functionsInstance: Functions | null = null;
 
 if (typeof window !== 'undefined' && isFirebaseConfigValid) {
   // Only initialize Firebase in the browser with real config
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   db = getFirestore(app);
   auth = getAuth(app);
+  functionsInstance = getFunctions(app);
 }
 
-export { db, auth };
+export { db, auth, functionsInstance as functions };
 export default app;

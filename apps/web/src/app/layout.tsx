@@ -32,6 +32,36 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* reCAPTCHA configuration for invisible mode */}
+        <style>{`
+          .grecaptcha-badge { 
+            visibility: hidden !important; 
+            opacity: 0 !important;
+            position: fixed !important;
+            top: -10000px !important;
+            left: -10000px !important;
+            z-index: -9999 !important;
+            pointer-events: none !important;
+          }
+          
+          /* Ensure no popups appear */
+          [role="dialog"][aria-labelledby*="captcha"] {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          
+          /* Hide any reCAPTCHA elements */
+          .g-recaptcha,
+          .recaptcha-checkbox-border,
+          .recaptcha-checkbox-borderAnimation,
+          .recaptcha-checkbox-spinner,
+          .recaptcha-checkbox-checkmark {
+            display: none !important;
+            visibility: hidden !important;
+          }
+        `}</style>
+      </head>
       <body>
         {children}
       </body>
