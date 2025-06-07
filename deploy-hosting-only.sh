@@ -7,7 +7,7 @@ set -e
 
 # Build the Next.js app 
 echo "📦 Building Next.js app..."
-npm run build
+npm --workspace apps/web run build
 
 # Deploy only hosting (no functions)
 echo "🔥 Deploying hosting to Firebase..."

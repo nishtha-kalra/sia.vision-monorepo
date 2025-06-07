@@ -37,55 +37,31 @@ A modern, responsive landing page for SIA.Vision built with Next.js, React, Tail
 ## ��️ Project Structure
 
 ```
-sia-modern/
-├── src/
-│   ├── app/
-│   │   ├── favicon.ico             # SIA branded favicon (moved here for Next.js 13+)
-│   │   ├── icon.svg                # SVG icon for modern browsers
-│   │   ├── globals.css             # Global styles
-│   │   ├── layout.tsx              # Root layout
-│   │   ├── page.tsx                # Home page
-│   │   └── about/                  # About page
-│   ├── components/
-│   │   ├── navigation/
-│   │   │   └── Navbar.tsx          # Sticky navbar with working mobile menu
-│   │   ├── hero/
-│   │   │   ├── HeroSection.tsx     # Hero with video background
-│   │   │   └── HeroContent.tsx     # Hero text and CTA
-│   │   ├── how-it-works/
-│   │   │   └── HowItWorksSection.tsx
-│   │   ├── flywheel/
-│   │   │   └── FlywheelSection.tsx
-│   │   ├── meet-sia/
-│   │   │   └── MeetSiaSection.tsx
-│   │   ├── contact-form/
-│   │   │   └── ContactFormSection.tsx  # Firebase-integrated form
-│   │   ├── Footer.tsx
-│   │   └── LandingPage.tsx
-│   ├── lib/
-│   │   └── firebase.ts             # Firebase SDK configuration
-│   └── types/
-│       └── index.ts
-├── functions/                      # Firebase Cloud Functions
-│   ├── src/
-│   │   └── index.ts               # Contact form handler
-│   └── package.json
-├── public/                        # Static assets
-│   ├── sia.mp4                    # Hero video
-│   ├── favicon.ico                # Also in /app for Next.js
-│   └── *.svg                      # Feature illustrations
-├── firebase.json                  # Firebase configuration
-├── firestore.rules               # Database security
-├── firestore.indexes.json        # Database indexes
-├── .firebaserc                   # Project settings
-├── deploy.sh                     # Full deployment
-├── deploy-hosting-only.sh        # Hosting only
-├── dev.sh                        # Development environment
-├── tailwind.config.js            # Tailwind config
-├── eslint.config.mjs             # ESLint config
-├── next.config.mjs               # Next.js config
-├── postcss.config.mjs            # PostCSS config
-└── package.json                  # Dependencies
+sia-monorepo/
+├── apps/
+│   ├── web/                 # Next.js frontend
+│   │   ├── src/
+│   │   ├── public/
+│   │   ├── next.config.mjs
+│   │   ├── postcss.config.mjs
+│   │   ├── tailwind.config.js
+│   │   ├── tsconfig.json
+│   │   └── package.json
+│   └── functions/           # Firebase Cloud Functions
+│       ├── src/
+│       ├── tsconfig.json
+│       └── package.json
+├── firebase.json            # Firebase configuration
+├── firestore.rules          # Database security
+├── firestore.indexes.json   # Database indexes
+├── .firebaserc              # Project settings
+├── deploy.sh                # Full deployment
+├── deploy-hosting-only.sh   # Hosting only
+├── deploy-functions.sh      # Functions only
+├── dev.sh                   # Development environment
+├── eslint.config.mjs        # ESLint config
+├── package.json             # Turborepo root
+└── .prettierrc
 ```
 
 ## 🚀 Quick Start
@@ -98,14 +74,14 @@ sia-modern/
 
 1. **Install dependencies**:
    ```bash
-   cd sia-modern
+   cd sia-monorepo
    npm install
    ```
 
 2. **Start development environment**:
    ```bash
-   ./dev.sh
-   # Starts both Firebase emulators and Next.js dev server
+   npm run dev
+   # Or use ./dev.sh to launch Firebase emulators alongside Next.js
    ```
 
 3. **Access your app**:
@@ -155,9 +131,9 @@ sia-modern/
 - **Cache busting**: Proper refresh handling
 
 ### ✅ Repository Structure
-- **Main directory**: All files moved to `sia-modern/`
-- **Firebase integration**: All config files in main directory
-- **Deployment scripts**: Updated for new structure
+- **Main directory**: Now a Turborepo at `sia-monorepo/`
+- **Firebase integration**: All config files in the root directory
+- **Deployment scripts**: Updated for new monorepo paths
 - **Development workflow**: Streamlined setup process
 
 ## 📧 Contact Form Features
