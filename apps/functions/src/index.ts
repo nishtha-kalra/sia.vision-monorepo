@@ -833,6 +833,99 @@ export const createStoryworld = functions.https.onCall(
   }
 );
 
+export const getUserStoryworlds = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const db = admin.firestore();
+
+    try {
+      const snapshot = await db
+        .collection('storyworlds')
+        .where('ownerId', '==', uid)
+        .orderBy('updatedAt', 'desc')
+        .get();
+
+      const storyworlds = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      return { storyworlds };
+    } catch (error) {
+      functions.logger.error('Error fetching user storyworlds', error);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to fetch storyworlds'
+      );
+    }
+  }
+);
+
+export const deleteStoryworld = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const storyworldId = data.storyworldId as string;
+    if (!storyworldId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'storyworldId is required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const db = admin.firestore();
+
+    try {
+      const storyworldRef = db.collection('storyworlds').doc(storyworldId);
+      const storyworldSnap = await storyworldRef.get();
+
+      if (!storyworldSnap.exists || storyworldSnap.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      // Delete all assets in this storyworld
+      const assetsSnapshot = await db
+        .collection('assets')
+        .where('storyworldId', '==', storyworldId)
+        .get();
+
+      const batch = db.batch();
+      assetsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      // Delete the storyworld itself
+      batch.delete(storyworldRef);
+
+      await batch.commit();
+
+      return { success: true };
+    } catch (error) {
+      functions.logger.error('Error deleting storyworld', error);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to delete storyworld'
+      );
+    }
+  }
+);
+
 export const saveAsset = functions.https.onCall(
   async (data, context) => {
     if (!context.auth) {
@@ -909,6 +1002,49 @@ export const saveAsset = functions.https.onCall(
   }
 );
 
+export const getAssetById = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const assetId = data.assetId as string;
+    if (!assetId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'assetId is required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const db = admin.firestore();
+
+    try {
+      const assetDoc = await db.collection('assets').doc(assetId).get();
+
+      if (!assetDoc.exists || assetDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Asset not found or insufficient permissions'
+        );
+      }
+
+      return {
+        asset: {
+          id: assetDoc.id,
+          ...assetDoc.data(),
+        },
+      };
+    } catch (error) {
+      functions.logger.error('Error fetching asset', error);
+      throw new functions.https.HttpsError('internal', 'Failed to fetch asset');
+    }
+  }
+);
+
 export const getStoryworldAssets = functions.https.onCall(
   async (data, context) => {
     if (!context.auth) {
@@ -959,6 +1095,47 @@ export const getStoryworldAssets = functions.https.onCall(
     } catch (error) {
       functions.logger.error('Error fetching assets', error);
       throw new functions.https.HttpsError('internal', 'Failed to fetch assets');
+    }
+  }
+);
+
+export const deleteAsset = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const assetId = data.assetId as string;
+    if (!assetId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'assetId is required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const db = admin.firestore();
+
+    try {
+      const assetRef = db.collection('assets').doc(assetId);
+      const assetSnap = await assetRef.get();
+
+      if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Asset not found or insufficient permissions'
+        );
+      }
+
+      await assetRef.delete();
+
+      return { success: true };
+    } catch (error) {
+      functions.logger.error('Error deleting asset', error);
+      throw new functions.https.HttpsError('internal', 'Failed to delete asset');
     }
   }
 );
