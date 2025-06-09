@@ -787,6 +787,231 @@ export const provisionAllWallets = functions.https.onCall(
   }
 );
 
+// ----------------------
+// Storyworld & Asset Management
+// ----------------------
+
+export const createStoryworld = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const name = (data.name as string)?.trim();
+    const description = (data.description as string)?.trim() || '';
+    const coverImageUrl = (data.coverImageUrl as string) || null;
+
+    if (!name) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Name is required'
+      );
+    }
+
+    const db = admin.firestore();
+    try {
+      const doc = await db.collection('storyworlds').add({
+        ownerId: context.auth.uid,
+        name,
+        description,
+        coverImageUrl,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { storyworldId: doc.id };
+    } catch (error) {
+      functions.logger.error('Error creating storyworld', error);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to create storyworld'
+      );
+    }
+  }
+);
+
+export const saveAsset = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const assetId = data.assetId as string | undefined;
+    const storyworldId = data.storyworldId as string;
+    const name = (data.name as string)?.trim();
+    const type = data.type as string;
+    const content = data.content as any;
+
+    if (!storyworldId || !name || !type || !content) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'storyworldId, name, type and content are required'
+      );
+    }
+
+    const db = admin.firestore();
+
+    try {
+      // Validate storyworld ownership when creating new asset
+      if (!assetId) {
+        const swDoc = await db
+          .collection('storyworlds')
+          .doc(storyworldId)
+          .get();
+        if (!swDoc.exists || swDoc.data()?.ownerId !== uid) {
+          throw new functions.https.HttpsError(
+            'permission-denied',
+            'Invalid storyworld or insufficient permissions'
+          );
+        }
+
+        const doc = await db.collection('assets').add({
+          ownerId: uid,
+          storyworldId,
+          name,
+          type,
+          content,
+          status: 'DRAFT',
+          ipStatus: 'UNREGISTERED',
+          onChainId: null,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { assetId: doc.id };
+      } else {
+        const assetRef = db.collection('assets').doc(assetId);
+        const assetSnap = await assetRef.get();
+        if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
+          throw new functions.https.HttpsError(
+            'permission-denied',
+            'Invalid asset or insufficient permissions'
+          );
+        }
+
+        await assetRef.update({
+          name,
+          content,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { assetId };
+      }
+    } catch (error) {
+      functions.logger.error('Error saving asset', error);
+      throw new functions.https.HttpsError('internal', 'Failed to save asset');
+    }
+  }
+);
+
+export const getStoryworldAssets = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const storyworldId = data.storyworldId as string;
+    const filterByType = data.filterByType as string | undefined;
+    const filterByIpStatus = data.filterByIpStatus as string | undefined;
+    const sortBy = (data.sortBy as string) || 'createdAt';
+
+    if (!storyworldId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'storyworldId is required'
+      );
+    }
+
+    const db = admin.firestore();
+    try {
+      let query: FirebaseFirestore.Query = db
+        .collection('assets')
+        .where('ownerId', '==', uid)
+        .where('storyworldId', '==', storyworldId);
+
+      if (filterByType) {
+        query = query.where('type', '==', filterByType);
+      }
+
+      if (filterByIpStatus) {
+        query = query.where('ipStatus', '==', filterByIpStatus);
+      }
+
+      query = query.orderBy(sortBy as string, 'desc');
+
+      const snapshot = await query.get();
+      const assets = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        const { content: _content, ...rest } = data;
+        return { id: doc.id, ...rest };
+      });
+
+      return { assets };
+    } catch (error) {
+      functions.logger.error('Error fetching assets', error);
+      throw new functions.https.HttpsError('internal', 'Failed to fetch assets');
+    }
+  }
+);
+
+export const confirmAssetRegistration = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const assetId = data.assetId as string;
+    const onChainId = data.onChainId as string;
+
+    if (!assetId || !onChainId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'assetId and onChainId are required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const db = admin.firestore();
+
+    try {
+      const assetRef = db.collection('assets').doc(assetId);
+      const assetSnap = await assetRef.get();
+      if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid asset or insufficient permissions'
+        );
+      }
+
+      await assetRef.update({
+        ipStatus: 'REGISTERED',
+        onChainId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { success: true };
+    } catch (error) {
+      functions.logger.error('Error confirming registration', error);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to confirm registration'
+      );
+    }
+  }
+);
+
 // Helper function to generate user confirmation email HTML
 function generateUserEmailHtml(data: EnquiryData): string {
   return `
