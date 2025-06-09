@@ -31,7 +31,22 @@
     "@tiptap/extension-image": "npm:@tiptap/extension-image@next",
     "@tiptap/extension-link": "npm:@tiptap/extension-link@next",
     "@tiptap/extension-underline": "npm:@tiptap/extension-underline@next",
-    "@tiptap/extension-placeholder": "npm:@tiptap/extension-placeholder@next"
+    "@tiptap/extension-placeholder": "npm:@tiptap/extension-placeholder@next",
+    "@tiptap/extension-text-style": "npm:@tiptap/extension-text-style@next",
+    "@tiptap/extension-color": "npm:@tiptap/extension-color@next",
+    "@tiptap/extension-text-align": "npm:@tiptap/extension-text-align@next",
+    "@tiptap/extension-highlight": "npm:@tiptap/extension-highlight@next",
+    "@tiptap/extension-table": "npm:@tiptap/extension-table@next",
+    "@tiptap/extension-table-row": "npm:@tiptap/extension-table-row@next",
+    "@tiptap/extension-table-cell": "npm:@tiptap/extension-table-cell@next",
+    "@tiptap/extension-table-header": "npm:@tiptap/extension-table-header@next",
+    "@tiptap/extension-task-list": "npm:@tiptap/extension-task-list@next",
+    "@tiptap/extension-task-item": "npm:@tiptap/extension-task-item@next",
+    "@tiptap/extension-subscript": "npm:@tiptap/extension-subscript@next",
+    "@tiptap/extension-superscript": "npm:@tiptap/extension-superscript@next",
+    "@tiptap/extension-character-count": "npm:@tiptap/extension-character-count@next",
+    "@tiptap/extension-code-block-lowlight": "npm:@tiptap/extension-code-block-lowlight@next",
+    "lowlight": "^2.13.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
