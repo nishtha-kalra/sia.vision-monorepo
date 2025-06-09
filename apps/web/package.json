@@ -25,7 +25,13 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-firebase-hooks": "^5.1.1",
-    "tailwind-merge": "^3.3.0"
+    "tailwind-merge": "^3.3.0",
+    "@tiptap/react": "npm:@tiptap/react@next",
+    "@tiptap/starter-kit": "npm:@tiptap/starter-kit@next",
+    "@tiptap/extension-image": "npm:@tiptap/extension-image@next",
+    "@tiptap/extension-link": "npm:@tiptap/extension-link@next",
+    "@tiptap/extension-underline": "npm:@tiptap/extension-underline@next",
+    "@tiptap/extension-placeholder": "npm:@tiptap/extension-placeholder@next"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
