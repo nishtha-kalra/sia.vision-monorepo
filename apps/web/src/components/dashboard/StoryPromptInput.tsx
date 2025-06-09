@@ -46,14 +46,7 @@ export const StoryPromptInput = ({
   };
 
   return (
-    <section className="mb-12 text-center">
-      <h1 className="text-4xl font-light text-[#111827] mb-3">
-        What story will you build today?
-      </h1>
-      <p className="text-[#6B7280] text-lg mb-8 max-w-2xl mx-auto">
-        Describe your creative vision and watch it come to life. Build characters, worlds, and narratives with AI assistance.
-      </p>
-      
+    <div>
       <div className="relative mx-auto max-w-4xl mb-6">
         <textarea
           placeholder="Start a new storyworld based on Norse mythology but set in a cyberpunk future..."
@@ -104,6 +97,6 @@ export const StoryPromptInput = ({
           </button>
         ))}
       </div>
-    </section>
+    </div>
   );
 }; 

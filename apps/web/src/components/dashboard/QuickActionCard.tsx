@@ -13,8 +13,7 @@ export const QuickActionCard = ({ action, onClick }: QuickActionCardProps) => {
     >
       <div className="flex gap-4 items-start">
         <div 
-          className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl"
-          style={{ backgroundColor: action.color }}
+          className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl ${action.color}`}
         >
           {action.icon}
         </div>
