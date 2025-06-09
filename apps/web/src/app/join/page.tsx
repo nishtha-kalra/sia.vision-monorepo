@@ -34,8 +34,8 @@ export default function JoinPage() {
         const hasPhoneNumber = await checkUserPhoneNumber(u);
         
         if (hasPhoneNumber) {
-          // User has phone number, redirect to profile
-          router.replace('/profile');
+          // User has phone number, redirect to dashboard
+          router.replace('/dashboard');
         } else {
           // User doesn't have phone number - go directly to phone verification
           setAuthStep('phone-verification');
@@ -77,8 +77,8 @@ export default function JoinPage() {
       const hasPhoneNumber = await checkUserPhoneNumber(result.user);
       
       if (hasPhoneNumber) {
-        // User already has phone number - redirect to profile immediately
-        router.replace('/profile');
+        // User already has phone number - redirect to dashboard immediately
+        router.replace('/dashboard');
       } else {
         // User doesn't have phone number - go directly to phone verification
         setAuthStep('phone-verification');
@@ -95,9 +95,9 @@ export default function JoinPage() {
   };
 
   const handlePhoneVerificationSuccess = async () => {
-    // Phone verification completed, redirect to profile immediately
+    // Phone verification completed, redirect to dashboard immediately
     setAuthStep('profile');
-    router.replace('/profile');
+    router.replace('/dashboard');
   };
 
   if (loading) {

@@ -173,13 +173,13 @@ export function Navbar() {
           {/* Authentication Button/Profile */}
           {user ? (
             <Link
-              href="/profile"
+              href="/dashboard"
               className="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
             >
               {user.photoURL ? (
                 <img
                   src={user.photoURL}
-                  alt="Profile"
+                  alt="Dashboard"
                   className="w-8 h-8 rounded-full border-2 border-hero-blue-600/20"
                 />
               ) : (
@@ -285,7 +285,7 @@ export function Navbar() {
                   {/* Mobile Authentication Button/Profile */}
                   {user ? (
                     <Link
-                      href="/profile"
+                      href="/dashboard"
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center w-full text-left rounded-xl px-5 py-4 text-base font-semibold transition-all duration-200 border bg-hero-blue-50 border-hero-blue-200 text-hero-blue-600"
                     >
@@ -293,7 +293,7 @@ export function Navbar() {
                         {user.photoURL ? (
                           <img
                             src={user.photoURL}
-                            alt="Profile"
+                            alt="Dashboard"
                             className="w-6 h-6 rounded-full border border-hero-blue-600/20"
                           />
                         ) : (
@@ -303,7 +303,7 @@ export function Navbar() {
                               : user.email?.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <span className="block">Profile</span>
+                        <span className="block">Dashboard</span>
                       </div>
                     </Link>
                   ) : (
