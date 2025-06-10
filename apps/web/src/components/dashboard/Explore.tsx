@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { Asset, Project } from './types';
+import { Asset } from './types';
 
 interface ExploreProps {
   onAssetSelect: (asset: Asset) => void;

@@ -35,20 +35,34 @@ interface FlywheelStepProps {
   progress?: number;
 }
 
-const FlywheelStep = ({ step, title, description, icon, isActive = false, progress = 0 }: FlywheelStepProps) => (
-  <div className={`relative p-6 rounded-2xl border-2 transition-all duration-300 ${
-    isActive 
-      ? 'border-[#6366F1] bg-gradient-to-br from-[#6366F1]/5 to-[#8B5CF6]/5 shadow-lg' 
-      : 'border-[#E5E7EB] bg-white hover:border-[#D1D5DB] hover:shadow-md'
-  }`}>
+const FlywheelStep = ({
+  title,
+  description,
+  icon,
+  isActive = false,
+  progress = 0,
+}: FlywheelStepProps) => (
+  <div
+    className={`relative p-6 rounded-2xl border-2 transition-all duration-300 ${
+      isActive
+        ? 'border-[#6366F1] bg-gradient-to-br from-[#6366F1]/5 to-[#8B5CF6]/5 shadow-lg'
+        : 'border-[#E5E7EB] bg-white hover:border-[#D1D5DB] hover:shadow-md'
+    }`}
+  >
     <div className="flex items-start gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-        isActive ? 'bg-[#6366F1] text-white shadow-lg' : 'bg-[#F3F4F6] text-[#6B7280]'
-      }`}>
+      <div
+        className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+          isActive
+            ? 'bg-[#6366F1] text-white shadow-lg'
+            : 'bg-[#F3F4F6] text-[#6B7280]'
+        }`}
+      >
         {icon}
       </div>
       <div className="flex-1">
-        <h3 className={`font-semibold text-lg mb-2 ${isActive ? 'text-[#6366F1]' : 'text-[#111827]'}`}>
+        <h3
+          className={`font-semibold text-lg mb-2 ${isActive ? 'text-[#6366F1]' : 'text-[#111827]'}`}
+        >
           {title}
         </h3>
         <p className="text-[#6B7280] text-sm leading-relaxed">{description}</p>
@@ -59,7 +73,7 @@ const FlywheelStep = ({ step, title, description, icon, isActive = false, progre
               <span>{progress}%</span>
             </div>
             <div className="w-full bg-[#E5E7EB] rounded-full h-2">
-              <div 
+              <div
                 className="bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] h-2 rounded-full transition-all duration-500"
                 style={{ width: `${progress}%` }}
               ></div>
@@ -68,7 +82,7 @@ const FlywheelStep = ({ step, title, description, icon, isActive = false, progre
         )}
       </div>
     </div>
-    
+
     {isActive && (
       <div className="absolute top-4 right-4">
         <div className="w-3 h-3 bg-[#6366F1] rounded-full animate-pulse"></div>
@@ -86,7 +100,13 @@ interface SmartSuggestionProps {
   onClick: () => void;
 }
 
-const SmartSuggestion = ({ type, title, description, icon, confidence, onClick }: SmartSuggestionProps) => (
+const SmartSuggestion = ({
+  title,
+  description,
+  icon,
+  confidence,
+  onClick,
+}: SmartSuggestionProps) => (
   <button
     onClick={onClick}
     className="group w-full p-4 bg-white border border-[#E5E7EB] rounded-xl hover:border-[#6366F1] hover:shadow-lg transition-all duration-200 text-left"
@@ -107,8 +127,18 @@ const SmartSuggestion = ({ type, title, description, icon, confidence, onClick }
         </div>
         <p className="text-sm text-[#6B7280]">{description}</p>
       </div>
-      <svg className="w-5 h-5 text-[#D1D5DB] group-hover:text-[#6366F1] group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      <svg
+        className="w-5 h-5 text-[#D1D5DB] group-hover:text-[#6366F1] group-hover:translate-x-1 transition-all duration-200"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 5l7 7-7 7"
+        />
       </svg>
     </div>
   </button>
@@ -118,8 +148,7 @@ export const Dashboard = ({
   promptInput,
   onPromptInputChange,
   onPromptSubmit,
-  suggestions,
-  onUseSuggestion,
+                            onUseSuggestion,
   onCreateAsset,
 }: DashboardProps) => {
   const [isLoading, setIsLoading] = useState(true);
