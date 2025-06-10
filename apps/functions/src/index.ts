@@ -3,6 +3,14 @@ import * as admin from "firebase-admin";
 import { PrivyClient } from "@privy-io/server-auth";
 import cors from "cors";
 import sgMail from "@sendgrid/mail";
+import { 
+  UploadRequest, 
+  UploadResponse, 
+  CreateAssetRequest, 
+  CreateAssetResponse,
+  MediaProcessingResult,
+  AssetType 
+} from "./types";
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -1054,7 +1062,6 @@ export const getStoryworldAssets = functions.https.onCall(
       );
     }
 
-    const uid = context.auth.uid;
     const storyworldId = data.storyworldId as string;
     const filterByType = data.filterByType as string | undefined;
     const filterByIpStatus = data.filterByIpStatus as string | undefined;
@@ -1069,26 +1076,72 @@ export const getStoryworldAssets = functions.https.onCall(
 
     const db = admin.firestore();
     try {
-      let query: FirebaseFirestore.Query = db
-        .collection('assets')
-        .where('ownerId', '==', uid)
+      // First, verify user has access to this storyworld
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Storyworld not found'
+        );
+      }
+
+      // Note: Future versions could use storyworldData for permission checks
+      // const storyworldData = storyworldDoc.data()!;
+
+      // Get asset relationships for this storyworld
+      const relationshipsQuery = db
+        .collection('asset-storyworld-relations')
         .where('storyworldId', '==', storyworldId);
 
-      if (filterByType) {
-        query = query.where('type', '==', filterByType);
+      const relationshipsSnapshot = await relationshipsQuery.get();
+      
+      if (relationshipsSnapshot.empty) {
+        return { assets: [] };
       }
 
-      if (filterByIpStatus) {
-        query = query.where('ipStatus', '==', filterByIpStatus);
+      // Get asset IDs from relationships
+      const assetIds = relationshipsSnapshot.docs.map(doc => doc.data().assetId);
+
+      // Fetch assets in batches (Firestore 'in' query limit is 10)
+      const assets: any[] = [];
+      const batchSize = 10;
+      
+      for (let i = 0; i < assetIds.length; i += batchSize) {
+        const batch = assetIds.slice(i, i + batchSize);
+        
+        let assetsQuery: FirebaseFirestore.Query = db
+          .collection('assets')
+          .where(admin.firestore.FieldPath.documentId(), 'in', batch);
+
+        // Apply filters
+        if (filterByType) {
+          assetsQuery = assetsQuery.where('type', '==', filterByType);
+        }
+
+        if (filterByIpStatus) {
+          assetsQuery = assetsQuery.where('ipStatus', '==', filterByIpStatus);
+        }
+
+        const assetsSnapshot = await assetsQuery.get();
+        const batchAssets = assetsSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          const { content: _content, ...rest } = data;
+          return { id: doc.id, ...rest };
+        });
+
+        assets.push(...batchAssets);
       }
 
-      query = query.orderBy(sortBy as string, 'desc');
-
-      const snapshot = await query.get();
-      const assets = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        const { content: _content, ...rest } = data;
-        return { id: doc.id, ...rest };
+      // Sort assets
+      assets.sort((a, b) => {
+        const aValue = a[sortBy];
+        const bValue = b[sortBy];
+        
+        if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
+          return bValue?.toMillis() - aValue?.toMillis(); // Descending for dates
+        }
+        
+        return bValue > aValue ? 1 : -1; // Descending for strings
       });
 
       return { assets };
@@ -1123,7 +1176,7 @@ export const deleteAsset = functions.https.onCall(
       const assetRef = db.collection('assets').doc(assetId);
       const assetSnap = await assetRef.get();
 
-      if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
+      if (!assetSnap.exists || assetSnap.data()?.uploadedBy !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Asset not found or insufficient permissions'
@@ -1165,7 +1218,7 @@ export const confirmAssetRegistration = functions.https.onCall(
     try {
       const assetRef = db.collection('assets').doc(assetId);
       const assetSnap = await assetRef.get();
-      if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
+      if (!assetSnap.exists || assetSnap.data()?.uploadedBy !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid asset or insufficient permissions'
@@ -1184,6 +1237,301 @@ export const confirmAssetRegistration = functions.https.onCall(
       throw new functions.https.HttpsError(
         'internal',
         'Failed to confirm registration'
+      );
+    }
+  }
+);
+
+// ----------------------
+// Media Upload & Processing
+// ----------------------
+
+// Create a secure upload URL for media files
+export const getSecureUploadUrl = functions.https.onCall(
+  async (data: UploadRequest, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { fileName, contentType, fileSize, storyworldId, assetType } = data;
+    const uid = context.auth.uid;
+
+    // Validate input
+    if (!fileName || !contentType || !storyworldId || !assetType) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'fileName, contentType, storyworldId, and assetType are required'
+      );
+    }
+
+    // File size limits (50MB for videos, 10MB for images)
+    const maxSize = assetType === 'VIDEO' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (fileSize > maxSize) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `File size exceeds limit of ${maxSize / (1024 * 1024)}MB`
+      );
+    }
+
+    // Validate file type
+    const allowedTypes = {
+      IMAGE: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+      VIDEO: ['video/mp4', 'video/webm', 'video/quicktime'],
+      AUDIO: ['audio/mpeg', 'audio/wav', 'audio/ogg']
+    };
+
+    if (assetType in allowedTypes && !allowedTypes[assetType as keyof typeof allowedTypes].includes(contentType)) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Invalid file type for ${assetType}`
+      );
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+
+    try {
+      // Verify storyworld ownership
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      // Create asset document with flexible sharing model
+      const assetRef = await db.collection('assets').add({
+        uploadedBy: uid,
+        name: fileName.split('.')[0], // Remove extension for default name
+        type: assetType,
+        status: 'DRAFT',
+        ipStatus: 'UNREGISTERED',
+        onChainId: null,
+        mimeType: contentType,
+        fileSize,
+        visibility: 'STORYWORLD', // Default to storyworld-level sharing
+        allowRemixing: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create asset-storyworld relationship
+      await db.collection('asset-storyworld-relations').add({
+        assetId: assetRef.id,
+        storyworldId,
+        addedBy: uid,
+        role: 'OWNER',
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Generate unique file path
+      const fileExtension = fileName.split('.').pop();
+      const filePath = `assets/${assetRef.id}/original.${fileExtension}`;
+      const file = bucket.file(filePath);
+
+      // Generate signed URL for direct upload (expires in 15 minutes)
+      const [uploadUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType,
+      });
+
+      // Store upload metadata in asset
+      await assetRef.update({
+        filePath,
+        uploadUrl,
+        uploadExpiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 15 * 60 * 1000)),
+      });
+
+      const response: UploadResponse = {
+        uploadUrl,
+        assetId: assetRef.id,
+        filePath,
+      };
+
+      return response;
+    } catch (error) {
+      functions.logger.error('Error generating upload URL', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to generate upload URL'
+      );
+    }
+  }
+);
+
+// Process uploaded media file
+export const processUploadedMedia = functions.https.onCall(
+  async (data: { assetId: string }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { assetId } = data;
+    const uid = context.auth.uid;
+
+    if (!assetId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'assetId is required'
+      );
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+
+    try {
+      // Get asset document
+      const assetDoc = await db.collection('assets').doc(assetId).get();
+      if (!assetDoc.exists || assetDoc.data()?.uploadedBy !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Asset not found or insufficient permissions'
+        );
+      }
+
+      const assetData = assetDoc.data()!;
+      const filePath = assetData.filePath;
+
+      if (!filePath) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'No file path found for asset'
+        );
+      }
+
+      // Check if file exists in storage
+      const file = bucket.file(filePath);
+      const [exists] = await file.exists();
+
+      if (!exists) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Uploaded file not found in storage'
+        );
+      }
+
+      // Generate public download URL
+      await file.makePublic();
+      const mediaUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+      // Update asset with media URL and processing status
+      const updateData: any = {
+        mediaUrl,
+        status: 'PUBLISHED',
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // For images, could generate thumbnail here
+      if (assetData.type === 'IMAGE') {
+        // TODO: Add thumbnail generation
+        updateData.thumbnailUrl = mediaUrl; // Use original for now
+      }
+
+      await assetDoc.ref.update(updateData);
+
+      const result: MediaProcessingResult = {
+        success: true,
+        assetId,
+        mediaUrl,
+        thumbnailUrl: updateData.thumbnailUrl,
+        metadata: {
+          fileSize: assetData.fileSize,
+          mimeType: assetData.mimeType,
+        },
+      };
+
+      functions.logger.info('Media processing completed', { assetId, uid });
+      return result;
+    } catch (error) {
+      functions.logger.error('Error processing media', { assetId, uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to process uploaded media'
+      );
+    }
+  }
+);
+
+// Create asset without media (for text-based assets)
+export const createTextAsset = functions.https.onCall(
+  async (data: CreateAssetRequest & { content: any }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { storyworldId, name, type, description, tags, content } = data;
+    const uid = context.auth.uid;
+
+    if (!storyworldId || !name || !type || !content) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'storyworldId, name, type, and content are required'
+      );
+    }
+
+    const db = admin.firestore();
+
+    try {
+      // Verify storyworld ownership
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      // Create asset with flexible sharing model
+      const assetRef = await db.collection('assets').add({
+        uploadedBy: uid,
+        name: name.trim(),
+        type,
+        content,
+        description: description?.trim() || '',
+        tags: tags || [],
+        status: 'DRAFT',
+        ipStatus: 'UNREGISTERED',
+        onChainId: null,
+        visibility: 'STORYWORLD', // Default to storyworld-level sharing
+        allowRemixing: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create asset-storyworld relationship
+      await db.collection('asset-storyworld-relations').add({
+        assetId: assetRef.id,
+        storyworldId,
+        addedBy: uid,
+        role: 'OWNER',
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const response: CreateAssetResponse = {
+        assetId: assetRef.id,
+        success: true,
+      };
+
+      functions.logger.info('Text asset created', { assetId: assetRef.id, uid, type });
+      return response;
+    } catch (error) {
+      functions.logger.error('Error creating text asset', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to create asset'
       );
     }
   }
@@ -1230,4 +1578,116 @@ function generateUserEmailHtml(data: EnquiryData): string {
       </div>
     </div>
   `;
-} 
+}
+
+// Alternative upload method - server-side file handling
+export const uploadMediaDirect = functions.https.onCall(
+  async (data: { 
+    fileName: string; 
+    contentType: string; 
+    fileData: string; // base64 encoded file
+    storyworldId: string; 
+    assetType: AssetType 
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { fileName, contentType, fileData, storyworldId, assetType } = data;
+    const uid = context.auth.uid;
+
+    // Validate file size (base64 is ~1.37x larger than original)
+    const estimatedFileSize = (fileData.length * 0.75); // rough estimate
+    const maxSize = assetType === 'VIDEO' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (estimatedFileSize > maxSize) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `File size exceeds limit of ${maxSize / (1024 * 1024)}MB`
+      );
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+
+    try {
+      // Verify storyworld ownership
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      // Create asset document
+      const assetRef = await db.collection('assets').add({
+        uploadedBy: uid,
+        name: fileName.split('.')[0],
+        type: assetType,
+        status: 'DRAFT',
+        ipStatus: 'UNREGISTERED',
+        onChainId: null,
+        mimeType: contentType,
+        fileSize: estimatedFileSize,
+        visibility: 'STORYWORLD',
+        allowRemixing: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create asset-storyworld relationship
+      await db.collection('asset-storyworld-relations').add({
+        assetId: assetRef.id,
+        storyworldId,
+        addedBy: uid,
+        role: 'OWNER',
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Upload file directly from server
+      const fileExtension = fileName.split('.').pop();
+      const filePath = `assets/${assetRef.id}/original.${fileExtension}`;
+      const file = bucket.file(filePath);
+
+      // Convert base64 to buffer
+      const fileBuffer = Buffer.from(fileData, 'base64');
+
+      // Upload file
+      await file.save(fileBuffer, {
+        metadata: {
+          contentType,
+        },
+      });
+
+      // Make file public
+      await file.makePublic();
+      const mediaUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+      // Update asset with media URL
+      await assetRef.update({
+        filePath,
+        mediaUrl,
+        status: 'PUBLISHED',
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      functions.logger.info('Direct upload completed', { assetId: assetRef.id, uid });
+      
+      return {
+        success: true,
+        assetId: assetRef.id,
+        mediaUrl,
+      };
+    } catch (error) {
+      functions.logger.error('Error in direct upload', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to upload file'
+      );
+    }
+  }
+); 

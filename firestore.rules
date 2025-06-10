@@ -1,6 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper functions for permissions
+    function hasStoryworldPermission(storyworldId, userId, minimumRole) {
+      // Check if user is storyworld owner
+      let storyworld = get(/databases/$(database)/documents/storyworlds/$(storyworldId));
+      if (storyworld.data.ownerId == userId) {
+        return true;
+      }
+      
+      // Check explicit permissions
+      let permissions = get(/databases/$(database)/documents/storyworld-permissions/$(storyworldId + '_' + userId));
+      if (permissions != null) {
+        let userRole = permissions.data.role;
+        return (minimumRole == 'VIEWER' && userRole in ['VIEWER', 'CONTRIBUTOR', 'EDITOR', 'OWNER']) ||
+               (minimumRole == 'CONTRIBUTOR' && userRole in ['CONTRIBUTOR', 'EDITOR', 'OWNER']) ||
+               (minimumRole == 'EDITOR' && userRole in ['EDITOR', 'OWNER']) ||
+               (minimumRole == 'OWNER' && userRole == 'OWNER');
+      }
+      
+      return false;
+    }
+    
+    function hasStoryworldAccess(assetId, userId) {
+      // Check if user has access to any storyworld that contains this asset
+      return exists(/databases/$(database)/documents/asset-storyworld-relations/$(assetId + '_' + userId));
+    }
     // Users collection - users can read/write their own data
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -20,6 +46,52 @@ service cloud.firestore {
     // Enquiries collection - only allow server-side writes
     match /enquiries/{document} {
       allow read, write: if false; // Only allow server-side access
+    }
+    
+    // Storyworlds collection - users can read/write their own storyworlds
+    match /storyworlds/{storyworldId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+    }
+    
+    // Assets collection - flexible sharing model
+    match /assets/{assetId} {
+      // Users can read assets they uploaded or have access to via storyworld relations
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.uploadedBy ||
+        resource.data.visibility == 'PUBLIC' ||
+        (resource.data.visibility == 'STORYWORLD' && hasStoryworldAccess(assetId, request.auth.uid))
+      );
+      // Users can only edit assets they uploaded
+      allow write: if request.auth != null && request.auth.uid == resource.data.uploadedBy;
+      // Users can create assets
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uploadedBy;
+    }
+    
+    // Asset-Storyworld relationships
+    match /asset-storyworld-relations/{relationId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.addedBy ||
+        hasStoryworldPermission(resource.data.storyworldId, request.auth.uid, 'VIEWER')
+      );
+      allow create: if request.auth != null && 
+        hasStoryworldPermission(request.resource.data.storyworldId, request.auth.uid, 'CONTRIBUTOR');
+      allow write, delete: if request.auth != null && (
+        request.auth.uid == resource.data.addedBy ||
+        hasStoryworldPermission(resource.data.storyworldId, request.auth.uid, 'EDITOR')
+      );
+    }
+    
+    // Storyworld permissions
+    match /storyworld-permissions/{permissionId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        hasStoryworldPermission(resource.data.storyworldId, request.auth.uid, 'VIEWER')
+      );
+      allow create: if request.auth != null && 
+        hasStoryworldPermission(request.resource.data.storyworldId, request.auth.uid, 'OWNER');
+      allow write, delete: if request.auth != null && 
+        hasStoryworldPermission(resource.data.storyworldId, request.auth.uid, 'OWNER');
     }
     
     // Default rule - deny all other access

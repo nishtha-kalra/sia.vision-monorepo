@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Dashboard } from './Dashboard';
 import { Library } from './Library';
+import LibraryIntegrated from './LibraryIntegrated';
 import { Profile } from './Profile';
 import { Canvas } from './Canvas';
 import { StoryworldHub } from './StoryworldHub';
 import { Explore } from './Explore';
 import { OnboardingFlow } from './OnboardingFlow';
 import { Asset, Project, AssetContent } from './types';
+import { Asset as BackendAsset, Storyworld } from '@/types';
 
 export const DashboardContainer = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -192,30 +194,67 @@ export const DashboardContainer = () => {
         );
       
       case 'library':
-        // Show Storyworld Hub if viewing a specific project
-        if (viewingStoryworldHub && currentProject) {
-          return (
-            <StoryworldHub
-              project={currentProject}
-              onCreateAsset={handleCreateAsset}
-              onAssetSelect={handleAssetSelect}
-              onEditProject={() => console.log('Edit project:', currentProject)}
-              onBack={handleBackToLibrary}
-            />
-          );
-        }
-        
-        // Otherwise show main library
+        // Use the new integrated library for testing SIA functionality
         return (
-          <Library
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            libraryFilter={libraryFilter}
-            onFilterChange={setLibraryFilter}
-            onAssetSelect={handleAssetSelect}
-            onProjectSelect={handleProjectSelect}
-            onCreateProject={handleCreateProject}
-          />
+          <div className="p-6">
+            <div className="mb-4">
+              <div className="bg-[#F0F4FF] border border-[#C7D2FE] rounded-xl p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🚀</span>
+                  <div>
+                    <h3 className="font-semibold text-[#1E1B4B]">Backend Integration Active</h3>
+                    <p className="text-sm text-[#4C1D95]">Now using real Firebase Functions for storyworld and asset management</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <LibraryIntegrated
+              onAssetSelect={(asset: BackendAsset) => {
+                console.log('Selected backend asset:', asset);
+                // Convert backend asset to canvas-compatible format and open in Canvas
+                const canvasAsset: Asset = {
+                  id: asset.id,
+                  ownerId: (asset as any).uploadedBy || 'current_user',
+                  name: asset.name,
+                  parentId: null,
+                  projectId: 'backend_integrated',
+                  type: asset.type,
+                  content: asset.content || getDefaultAssetContent(asset.type),
+                  visibility: 'PRIVATE',
+                  ipStatus: asset.ipStatus === 'PENDING' ? 'UNREGISTERED' : (asset.ipStatus as 'UNREGISTERED' | 'REGISTERED'),
+                  createdAt: asset.createdAt ? new Date(asset.createdAt.seconds * 1000) : new Date(),
+                  updatedAt: asset.updatedAt ? new Date(asset.updatedAt.seconds * 1000) : new Date()
+                };
+                
+                setEditingAsset(canvasAsset);
+                setActiveTab('canvas');
+              }}
+              onStoryworldSelect={(storyworld: Storyworld) => {
+                console.log('Selected storyworld:', storyworld);
+                // Navigate within the integrated component
+              }}
+              onCreateStoryline={(storyworldId: string) => {
+                console.log('Creating storyline for storyworld:', storyworldId);
+                // Create a new storyline asset and open in Canvas
+                const newStoryline: Asset = {
+                  id: `storyline_${Date.now()}`,
+                  ownerId: 'current_user',
+                  name: 'New Storyline',
+                  parentId: null,
+                  projectId: storyworldId,
+                  type: 'STORYLINE',
+                  content: getDefaultAssetContent('STORYLINE'),
+                  visibility: 'PRIVATE',
+                  ipStatus: 'UNREGISTERED',
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                };
+                
+                setEditingAsset(newStoryline);
+                setActiveTab('canvas');
+              }}
+            />
+          </div>
         );
 
       case 'explore':
