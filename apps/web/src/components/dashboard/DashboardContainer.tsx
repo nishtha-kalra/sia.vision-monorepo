@@ -1,26 +1,51 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Sidebar } from './Sidebar';
 import { Dashboard } from './Dashboard';
 import { Library } from './Library';
 import { Profile } from './Profile';
+import { Storyworld } from './Storyworld';
+import { Asset, Project } from './types';
+
+// Lazy load heavy components to reduce initial bundle size
+const StorylineEditor = lazy(() => import('./StorylineEditor').then(module => ({ default: module.StorylineEditor })));
+const AssetEditor = lazy(() => import('./AssetEditor').then(module => ({ default: module.AssetEditor })));
+
+// Loading component for lazy-loaded editors
+const EditorLoading = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+      <p className="text-gray-600">Loading editor...</p>
+    </div>
+  </div>
+);
 
 export const DashboardContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [promptInput, setPromptInput] = useState('');
   const [libraryFilter, setLibraryFilter] = useState('all');
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [isEditingStoryline, setIsEditingStoryline] = useState(false);
+  const [isEditingAsset, setIsEditingAsset] = useState(false);
 
   // Suggestion prompts for the main dashboard
   const suggestions = [
-    'Start a new storyworld based on Norse mythology but set in a cyberpunk future',
-    'Create a character who is a time-traveling detective',
-    'Design a magical academy hidden in modern Tokyo',
-    'Build a post-apocalyptic world where music has power'
+    'Create a cyberpunk character who is a neural interface hacker',
+    'Write the opening chapter of a space colonization story',
+    'Define the lore behind an ancient magical artifact',
+    'Build a post-apocalyptic world where nature has reclaimed cities'
   ];
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+    if (tab !== 'storyworld') {
+      setSelectedAsset(null);
+      setIsEditingStoryline(false);
+      setIsEditingAsset(false);
+    }
   };
 
   const handleLibraryOpen = () => {
@@ -29,13 +54,127 @@ export const DashboardContainer: React.FC = () => {
 
   const handlePromptSubmit = () => {
     if (promptInput.trim()) {
-      // TODO: Implement story creation logic
-      console.log('Creating story with prompt:', promptInput);
+      // TODO: Implement AI-powered asset creation
+      console.log('Creating assets with AI prompt:', promptInput);
+      // For now, open Storyworld with a new storyline
+      handleCreateAsset('STORYLINE');
     }
   };
 
   const handleUseSuggestion = (suggestion: string) => {
     setPromptInput(suggestion);
+  };
+
+  const handleCreateAsset = (assetType: Asset['type']) => {
+    // Create a new asset based on type
+    const newAsset: Asset = {
+      id: `asset_${Date.now()}`, // Temporary ID
+      ownerId: 'current_user', // TODO: Get from auth
+      name: getDefaultAssetName(assetType),
+      parentId: null,
+      projectId: 'current_project', // TODO: Get from current project context
+      type: assetType,
+      content: getDefaultAssetContent(assetType),
+      visibility: 'PRIVATE',
+      ipStatus: 'UNREGISTERED',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    setSelectedAsset(newAsset);
+    setActiveTab('storyworld');
+    
+    // Determine which editor to open based on asset type
+    if (assetType === 'STORYLINE') {
+      setIsEditingStoryline(true);
+      setIsEditingAsset(false);
+    } else {
+      setIsEditingAsset(true);
+      setIsEditingStoryline(false);
+    }
+  };
+
+  const handleAssetSelect = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setActiveTab('storyworld');
+    
+    // Determine which editor to open based on asset type
+    if (asset.type === 'STORYLINE') {
+      setIsEditingStoryline(true);
+      setIsEditingAsset(false);
+    } else {
+      setIsEditingAsset(true);
+      setIsEditingStoryline(false);
+    }
+  };
+
+  const handleCloseEditors = () => {
+    setIsEditingStoryline(false);
+    setIsEditingAsset(false);
+    setSelectedAsset(null);
+  };
+
+  const getDefaultAssetName = (type: Asset['type']): string => {
+    switch (type) {
+      case 'CHARACTER': return 'New Character';
+      case 'STORYLINE': return 'New Chapter';
+      case 'LORE': return 'New Lore Entry';
+      case 'IMAGE': return 'New Image';
+      case 'VIDEO': return 'New Video';
+      case 'AUDIO': return 'New Audio';
+      case 'FOLDER': return 'New Folder';
+      default: return 'New Asset';
+    }
+  };
+
+  const getDefaultAssetContent = (type: Asset['type']): Asset['content'] => {
+    switch (type) {
+      case 'CHARACTER':
+        return {
+          type: 'CHARACTER',
+          description: '',
+          traits: [],
+          tiptapJSON: {}
+        };
+      case 'STORYLINE':
+        return {
+          type: 'STORYLINE',
+          tiptapJSON: {},
+          plainText: ''
+        };
+      case 'LORE':
+        return {
+          type: 'LORE',
+          description: '',
+          significance: '',
+          tiptapJSON: {}
+        };
+      case 'IMAGE':
+        return {
+          type: 'IMAGE',
+          url: '',
+          altText: '',
+          caption: ''
+        };
+      case 'VIDEO':
+        return {
+          type: 'VIDEO',
+          url: '',
+          title: '',
+          description: ''
+        };
+      case 'AUDIO':
+        return {
+          type: 'AUDIO',
+          url: '',
+          title: '',
+          description: ''
+        };
+      case 'FOLDER':
+        return { type: 'FOLDER' };
+      default:
+        return { type: 'FOLDER' };
+    }
   };
 
   return (
@@ -55,6 +194,7 @@ export const DashboardContainer: React.FC = () => {
               onPromptSubmit={handlePromptSubmit}
               suggestions={suggestions}
               onUseSuggestion={handleUseSuggestion}
+              onCreateAsset={handleCreateAsset}
             />
           )}
 
@@ -65,6 +205,7 @@ export const DashboardContainer: React.FC = () => {
               libraryFilter={libraryFilter}
               onFilterChange={setLibraryFilter}
               libraryAssets={[]} // Library manages its own collections now
+              onAssetSelect={handleAssetSelect}
             />
           )}
 
@@ -72,18 +213,32 @@ export const DashboardContainer: React.FC = () => {
             <Profile />
           )}
 
-          {activeTab === 'canvas' && (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-[#F3F4F6] rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-[#9CA3AF]" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-[#111827] mb-2">Canvas Coming Soon</h3>
-                <p className="text-[#6B7280]">The collaborative canvas editor is under development.</p>
-              </div>
-            </div>
+          {activeTab === 'storyworld' && !isEditingStoryline && !isEditingAsset && (
+            <Storyworld 
+              project={currentProject}
+              onProjectChange={setCurrentProject}
+              onCreateAsset={handleCreateAsset}
+            />
+          )}
+
+          {activeTab === 'storyworld' && isEditingStoryline && selectedAsset && (
+            <Suspense fallback={<EditorLoading />}>
+              <StorylineEditor
+                asset={selectedAsset}
+                onAssetChange={setSelectedAsset}
+                onClose={handleCloseEditors}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === 'storyworld' && isEditingAsset && selectedAsset && (
+            <Suspense fallback={<EditorLoading />}>
+              <AssetEditor
+                asset={selectedAsset}
+                onAssetChange={setSelectedAsset}
+                onClose={handleCloseEditors}
+              />
+            </Suspense>
           )}
         </main>
       </div>

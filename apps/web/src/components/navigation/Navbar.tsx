@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { useUser } from '../../hooks/useUser';
 
 const navigationItems: NavigationItem[] = [
   { label: 'Home', href: '/' },
@@ -66,14 +67,15 @@ const handleNavClick = (
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
+  const { authUser: user } = useUser();
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
     if (!auth) return;
     return onAuthStateChanged(auth as any, (user) => {
-      setUser(user);
+      // This effect is now empty as the user state is managed by useUser
     });
   }, []);
 
@@ -89,6 +91,16 @@ export function Navbar() {
     // For section links (#how-it-works, etc.), they are never marked as active
     // The user can click them to scroll, but they don't show as "active"
     return false;
+  };
+
+  const handleDashboardClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setIsDashboardLoading(true);
+    setMobileMenuOpen(false);
+    
+    // Add small delay to show loading state, then navigate
+    await new Promise(resolve => setTimeout(resolve, 200));
+    router.push('/dashboard');
   };
 
   return (
@@ -172,10 +184,16 @@ export function Navbar() {
 
           {/* Authentication Button/Profile */}
           {user ? (
-            <Link
+            <a
               href="/dashboard"
-              className="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+              onClick={handleDashboardClick}
+              className="flex items-center gap-2 p-2 rounded-full hover:bg-gray-100 transition-colors duration-200 relative"
             >
+              {isDashboardLoading && (
+                <div className="absolute inset-0 bg-gray-100/90 rounded-full flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-hero-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
               {user.photoURL ? (
                 <img
                   src={user.photoURL}
@@ -189,7 +207,7 @@ export function Navbar() {
                     : user.email?.charAt(0).toUpperCase()}
                 </div>
               )}
-            </Link>
+            </a>
           ) : (
             <Link
               href="/join"
@@ -284,11 +302,16 @@ export function Navbar() {
 
                   {/* Mobile Authentication Button/Profile */}
                   {user ? (
-                    <Link
+                    <a
                       href="/dashboard"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center w-full text-left rounded-xl px-5 py-4 text-base font-semibold transition-all duration-200 border bg-hero-blue-50 border-hero-blue-200 text-hero-blue-600"
+                      onClick={handleDashboardClick}
+                      className="flex items-center w-full text-left rounded-xl px-5 py-4 text-base font-semibold transition-all duration-200 border bg-hero-blue-50 border-hero-blue-200 text-hero-blue-600 relative"
                     >
+                      {isDashboardLoading && (
+                        <div className="absolute inset-0 bg-hero-blue-50/90 rounded-xl flex items-center justify-center">
+                          <div className="w-4 h-4 border-2 border-hero-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      )}
                       <div className="flex items-center gap-3">
                         {user.photoURL ? (
                           <img
@@ -305,7 +328,7 @@ export function Navbar() {
                         )}
                         <span className="block">Dashboard</span>
                       </div>
-                    </Link>
+                    </a>
                   ) : (
                     <Link
                       href="/join"

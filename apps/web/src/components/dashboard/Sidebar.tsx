@@ -75,8 +75,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLibr
           </button>
 
           <button
+            onClick={() => onTabChange('storyworld')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              activeTab === 'canvas'
+              activeTab === 'storyworld'
                 ? 'bg-[#6366F1] text-white shadow-sm'
                 : 'text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB]'
             }`}
@@ -86,13 +87,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLibr
               fill="currentColor"
               viewBox="0 0 20 20"
             >
-              <path
-                fillRule="evenodd"
-                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>Canvas</span>
+            <span>Storyworld</span>
           </button>
         </div>
       </div>
