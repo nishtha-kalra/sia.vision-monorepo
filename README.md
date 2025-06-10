@@ -6,6 +6,7 @@ A comprehensive story creation and publishing platform with phone-first authenti
 
 ### **🎨 Story Creation Platform**
 - **AI-Powered Story Builder**: ChatGPT-style interface for creating stories and characters
+- **Notion-Style Canvas**: Clean, intuitive writing interface with slash commands and inline formatting ✨ NEW
 - **Collections Library**: Organize and publish story collections with beautiful card-based interface
 - **Publishing Workflow**: One-click publishing with draft management and community sharing
 - **Asset Management**: Create and manage characters, lore, artifacts, and storyworlds
@@ -94,13 +95,18 @@ sia-modern/
 │   │   │   ├── components/     # React components
 │   │   │   │   ├── auth/       # Authentication components
 │   │   │   │   ├── dashboard/  # Dashboard & story creation components
-│   │   │   │   │   ├── StoryForge.tsx      # Main dashboard container
-│   │   │   │   │   ├── Dashboard.tsx       # ChatGPT-style story creator
-│   │   │   │   │   ├── Library.tsx         # Collections management
-│   │   │   │   │   ├── CollectionCard.tsx  # Collection display cards
-│   │   │   │   │   ├── Profile.tsx         # User profile & wallets
-│   │   │   │   │   ├── Sidebar.tsx         # Navigation sidebar
-│   │   │   │   │   └── types.ts            # TypeScript interfaces
+│   │   │   │   │   ├── Canvas.tsx           # Notion-style unified editor
+│   │   │   │   │   ├── DashboardContainer.tsx # Main dashboard orchestrator
+│   │   │   │   │   ├── Dashboard.tsx        # Home dashboard with AI prompts
+│   │   │   │   │   ├── Explore.tsx          # Community discovery hub
+│   │   │   │   │   ├── Library.tsx          # Asset management interface
+│   │   │   │   │   ├── OnboardingFlow.tsx   # First-time user guidance
+│   │   │   │   │   ├── Profile.tsx          # User profile management
+│   │   │   │   │   ├── Sidebar.tsx          # Navigation sidebar
+│   │   │   │   │   ├── StoryworldHub.tsx    # Individual project workspace
+│   │   │   │   │   ├── StoryPromptInput.tsx # AI prompt interface
+│   │   │   │   │   ├── TypingIndicator.tsx  # Loading animation
+│   │   │   │   │   └── types.ts             # TypeScript definitions
 │   │   │   │   ├── hero/       # Landing page sections
 │   │   │   │   └── navigation/ # Navigation components
 │   │   │   ├── hooks/          # Custom React hooks
