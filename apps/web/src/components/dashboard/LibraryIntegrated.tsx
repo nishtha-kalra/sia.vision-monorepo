@@ -648,12 +648,37 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
       setLoading(true);
       const result = await createStoryworld(data);
       
-      // Reload storyworlds to include the new one
-      await loadStoryworlds();
+      // Reload storyworlds to get the updated list including the new one
+      const storyworldsResult = await getUserStoryworlds();
+      setStoryworlds(storyworldsResult.storyworlds);
       
-      // Find and select the new storyworld
-      const newStoryworld = storyworlds.find(sw => sw.name === data.name) || 
-        { id: result.storyworldId, name: data.name, description: data.description } as Storyworld;
+      // Find the new storyworld using the ID from the creation result
+      let newStoryworld = storyworldsResult.storyworlds.find(sw => sw.id === result.storyworldId);
+      
+      // If not found by ID, try a brief retry since the database might need a moment
+      if (!newStoryworld) {
+        console.warn('Newly created storyworld not found in initial fetch, retrying...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay
+        const retryResult = await getUserStoryworlds();
+        setStoryworlds(retryResult.storyworlds);
+        newStoryworld = retryResult.storyworlds.find(sw => sw.id === result.storyworldId);
+      }
+      
+      // If still not found, create a more complete fallback object
+      if (!newStoryworld) {
+        console.warn('Storyworld still not found after retry, using fallback object');
+        newStoryworld = {
+          id: result.storyworldId,
+          name: data.name,
+          description: data.description,
+          ownerId: authUser?.uid || '',
+          createdAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+          updatedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
+          assetCount: 0,
+          ipStatus: 'UNREGISTERED' as const,
+          status: 'DRAFT' as const
+        } as Storyworld;
+      }
       
       setSelectedStoryworld(newStoryworld);
       setViewMode('hub');

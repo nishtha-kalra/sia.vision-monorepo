@@ -1123,8 +1123,14 @@ export const getStoryworldAssets = functions.https.onCall(
         );
       }
 
-      // Note: Future versions could use storyworldData for permission checks
-      // const storyworldData = storyworldDoc.data()!;
+      // Verify user owns this storyworld
+      const storyworldData = storyworldDoc.data()!;
+      if (storyworldData.ownerId !== context.auth.uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Access denied: You are not the owner of this storyworld'
+        );
+      }
 
       // Get asset relationships for this storyworld
       const relationshipsQuery = db
@@ -1149,7 +1155,8 @@ export const getStoryworldAssets = functions.https.onCall(
         
         let assetsQuery: FirebaseFirestore.Query = db
           .collection('assets')
-          .where(admin.firestore.FieldPath.documentId(), 'in', batch);
+          .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+          .where('uploadedBy', '==', context.auth.uid); // Ensure only user's assets are returned
 
         // Apply filters
         if (filterByType) {
@@ -1637,13 +1644,16 @@ export const uploadMediaDirect = functions.https.onCall(
     const { fileName, contentType, fileData, storyworldId, assetType } = data;
     const uid = context.auth.uid;
 
-    // Validate file size (base64 is ~1.37x larger than original)
-    const estimatedFileSize = (fileData.length * 0.75); // rough estimate
+    // Calculate accurate original file size from base64
+    // Base64 encoding: 3 bytes -> 4 characters, plus padding
+    const paddingChars = (fileData.match(/=/g) || []).length;
+    const actualFileSize = Math.floor((fileData.length * 3) / 4) - paddingChars;
+    
     const maxSize = assetType === 'VIDEO' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (estimatedFileSize > maxSize) {
+    if (actualFileSize > maxSize) {
       throw new functions.https.HttpsError(
         'invalid-argument',
-        `File size exceeds limit of ${maxSize / (1024 * 1024)}MB`
+        `File size (${Math.round(actualFileSize / (1024 * 1024) * 100) / 100}MB) exceeds limit of ${maxSize / (1024 * 1024)}MB`
       );
     }
 
@@ -1669,7 +1679,7 @@ export const uploadMediaDirect = functions.https.onCall(
         ipStatus: 'UNREGISTERED',
         onChainId: null,
         mimeType: contentType,
-        fileSize: estimatedFileSize,
+        fileSize: actualFileSize,
         visibility: 'STORYWORLD',
         allowRemixing: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1829,10 +1839,8 @@ export const processCreativePrompt = functions.https.onCall(
         .where('ownerId', '==', uid)
         .limit(10)
         .get();
-
-      const storyworldNames = userStoryworlds.docs.map(doc => doc.data().name);
-
-      // Enhanced prompt for AI analysis
+      userStoryworlds.docs.map(doc => doc.data().name);
+// Enhanced prompt for AI analysis
       const analysisPrompt = `
 Analyze this creative prompt: "${prompt}"
 

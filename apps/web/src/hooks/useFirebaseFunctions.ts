@@ -6,7 +6,6 @@ import type {
   Asset, 
   UploadRequest, 
   UploadResponse, 
-  CreateAssetRequest,
   AssetContentData,
   AssetType
 } from '@/types';
@@ -98,6 +97,7 @@ interface UploadProgress {
 export const useFirebaseFunctions = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: UploadProgress }>({});
+  const [activeUploads, setActiveUploads] = useState(new Set<string>());
 
   const validateFunctions = () => {
     if (!functions) {
@@ -255,8 +255,19 @@ export const useFirebaseFunctions = () => {
     mediaUrl: string;
     error?: string;
   }> => {
+    const uploadId = `${file.name}-${Date.now()}`;
+    
     try {
-      setUploading(true);
+      // Track this upload as active and manage uploading state atomically
+      setActiveUploads(prev => {
+        const newSet = new Set(prev);
+        newSet.add(uploadId);
+        // Set uploading to true when we have active uploads
+        if (newSet.size === 1) {
+          setUploading(true);
+        }
+        return newSet;
+      });
       
       // Initialize progress tracking
       const initialProgress: UploadProgress = {
@@ -348,16 +359,20 @@ export const useFirebaseFunctions = () => {
         error: error instanceof Error ? error.message : 'Upload failed',
       };
     } finally {
-      // Check if all uploads are complete
-      const remainingUploads = Object.values(uploadProgress).filter(
-        progress => progress.status === 'uploading' || progress.status === 'processing'
-      );
-      
-      if (remainingUploads.length === 0) {
-        setUploading(false);
-      }
+      // Remove this upload from active uploads and manage uploading state atomically
+      setActiveUploads(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(uploadId);
+        
+        // Set uploading to false only when no more active uploads
+        if (newSet.size === 0) {
+          setUploading(false);
+        }
+        
+        return newSet;
+      });
     }
-  }, [uploadMediaDirect, uploadProgress]);
+  }, [uploadMediaDirect]);
 
   // Batch upload multiple files
   const uploadMultipleAssets = useCallback(async (
@@ -429,6 +444,7 @@ export const useFirebaseFunctions = () => {
     // State
     uploading,
     uploadProgress,
+    activeUploads,
     clearUploadProgress,
   };
 }; 
