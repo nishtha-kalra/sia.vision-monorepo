@@ -3,17 +3,33 @@ import * as admin from "firebase-admin";
 import { PrivyClient } from "@privy-io/server-auth";
 import cors from "cors";
 import sgMail from "@sendgrid/mail";
+// Import Genkit and Google AI plugin libraries
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { configureGenkit } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/ai';
 import { 
   UploadRequest, 
   UploadResponse, 
   CreateAssetRequest, 
   CreateAssetResponse,
   MediaProcessingResult,
-  AssetType 
+  AssetType,
+  AIPromptRequest,
+  AIPromptResponse,
+  StoryworldEnhancementRequest,
+  StoryworldEnhancementResponse
 } from "./types";
 
 // Initialize Firebase Admin
 admin.initializeApp();
+
+// Configure Genkit
+configureGenkit({
+  plugins: [googleAI({
+    apiKey: functions.config().google?.ai_api_key,
+  })],
+  enableTracingAndMetrics: false,
+});
 
 // Initialize CORS
 const corsHandler = cors({origin: true});
@@ -811,6 +827,7 @@ export const createStoryworld = functions.https.onCall(
     const name = (data.name as string)?.trim();
     const description = (data.description as string)?.trim() || '';
     const coverImageUrl = (data.coverImageUrl as string) || null;
+    const aiContext = data.aiContext || null;
 
     if (!name) {
       throw new functions.https.HttpsError(
@@ -821,14 +838,35 @@ export const createStoryworld = functions.https.onCall(
 
     const db = admin.firestore();
     try {
-      const doc = await db.collection('storyworlds').add({
+      const storyworldData: any = {
         ownerId: context.auth.uid,
         name,
         description,
         coverImageUrl,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+
+      // Add AI context if provided
+      if (aiContext) {
+        storyworldData.aiGenerated = {
+          originalPrompt: aiContext.originalPrompt,
+          confidence: aiContext.confidence,
+          generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          aiAnalysis: {
+            intent: aiContext.aiResponse?.analysis?.intent,
+            extractedEntities: aiContext.aiResponse?.analysis?.extractedEntities,
+          },
+          // Store sanitized AI response (remove sensitive data)
+          suggestions: aiContext.aiResponse?.suggestions ? {
+            type: aiContext.aiResponse.suggestions.type,
+            title: aiContext.aiResponse.suggestions.title,
+            description: aiContext.aiResponse.suggestions.description,
+          } : null,
+        };
+      }
+
+      const doc = await db.collection('storyworlds').add(storyworldData);
 
       return { storyworldId: doc.id };
     } catch (error) {
@@ -1687,6 +1725,405 @@ export const uploadMediaDirect = functions.https.onCall(
       throw new functions.https.HttpsError(
         'internal',
         'Failed to upload file'
+      );
+    }
+  }
+); 
+
+// Helper function for basic prompt analysis (will be enhanced with AI later)
+function analyzePromptKeywords(prompt: string) {
+  const lowerPrompt = prompt.toLowerCase();
+  let intent = 'GENERAL_HELP';
+  let confidence = 0.6;
+  const extractedEntities: any = {};
+
+  // Detect storyworld creation intent - broader detection
+  if (lowerPrompt.includes('create') || lowerPrompt.includes('story') || lowerPrompt.includes('world') || lowerPrompt.includes('universe') || lowerPrompt.includes('setting') || lowerPrompt.includes('cyberpunk') || lowerPrompt.includes('fantasy')) {
+    intent = 'CREATE_STORYWORLD';
+    confidence = 0.9;
+    
+    // Extract potential names and genres
+    const genreKeywords = ['fantasy', 'sci-fi', 'science fiction', 'cyberpunk', 'steampunk', 'horror', 'mystery', 'romance', 'adventure'];
+    const foundGenre = genreKeywords.find(genre => lowerPrompt.includes(genre));
+    if (foundGenre) extractedEntities.genre = foundGenre;
+    
+    const themeKeywords = ['magic', 'technology', 'gods', 'mythology', 'space', 'future', 'ancient', 'medieval'];
+    extractedEntities.themes = themeKeywords.filter(theme => lowerPrompt.includes(theme));
+  }
+  
+  // Detect asset creation intent
+  else if (lowerPrompt.includes('character') || lowerPrompt.includes('story') || lowerPrompt.includes('plot') || lowerPrompt.includes('lore')) {
+    intent = 'CREATE_ASSET';
+    confidence = 0.7;
+    
+    if (lowerPrompt.includes('character')) extractedEntities.assetType = 'CHARACTER';
+    else if (lowerPrompt.includes('story') || lowerPrompt.includes('plot')) extractedEntities.assetType = 'STORYLINE';
+    else if (lowerPrompt.includes('lore') || lowerPrompt.includes('background')) extractedEntities.assetType = 'LORE';
+  }
+  
+  // Detect enhancement intent
+  else if (lowerPrompt.includes('expand') || lowerPrompt.includes('add to') || lowerPrompt.includes('enhance')) {
+    intent = 'ENHANCE_EXISTING';
+    confidence = 0.7;
+  }
+
+  return { 
+    intent: intent as 'CREATE_STORYWORLD' | 'CREATE_ASSET' | 'ENHANCE_EXISTING' | 'GENERAL_HELP', 
+    confidence, 
+    extractedEntities 
+  };
+}
+
+// Helper function to generate storyworld from prompt
+function generateStoryworldFromPrompt(prompt: string, entities: any) {
+  const defaultGenre = entities.genre ? entities.genre.charAt(0).toUpperCase() + entities.genre.slice(1) : 'Fantasy';
+  
+  // Generate name based on prompt keywords
+  let name = 'New Creative Universe';
+  if (entities.themes && entities.themes.length > 0) {
+    const theme = entities.themes[0];
+    name = `Realm of ${theme.charAt(0).toUpperCase() + theme.slice(1)}`;
+  }
+  
+  const descriptions = [
+    'A unique universe where stories come to life and creativity knows no bounds.',
+    'An immersive world filled with endless possibilities for storytelling.',
+    'A creative realm where imagination meets structured narrative.',
+    'A dynamic universe waiting to be shaped by your storytelling vision.'
+  ];
+  
+  return {
+    name,
+    description: descriptions[Math.floor(Math.random() * descriptions.length)],
+    genre: defaultGenre,
+    themes: entities.themes || ['Adventure', 'Discovery', 'Creativity']
+  };
+}
+
+// AI Assistant Functions
+export const processCreativePrompt = functions.https.onCall(
+  async (data: AIPromptRequest, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { prompt, userId, context: userContext } = data;
+    const uid = context.auth.uid;
+
+    if (uid !== userId) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'User ID mismatch'
+      );
+    }
+
+    try {
+      const db = admin.firestore();
+      
+      // Get user's existing storyworlds for context
+      const userStoryworlds = await db
+        .collection('storyworlds')
+        .where('ownerId', '==', uid)
+        .limit(10)
+        .get();
+
+      const storyworldNames = userStoryworlds.docs.map(doc => doc.data().name);
+
+      // Enhanced prompt for AI analysis
+      const analysisPrompt = `
+Analyze this creative prompt: "${prompt}"
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO EXPLANATIONS.
+
+START YOUR RESPONSE WITH { AND END WITH }
+
+Format exactly like this:
+{"intent": "CREATE_STORYWORLD", "confidence": 0.95, "extractedEntities": {"storyworldName": "Cyber-Valhalla", "genre": "cyberpunk fantasy", "themes": ["technology", "mythology"], "concepts": ["hackers", "gods"]}}
+      `;
+
+      // Use AI to analyze the prompt
+      const aiResponse = await generate({
+        model: gemini15Flash,
+        prompt: analysisPrompt,
+      });
+
+      // Parse AI response
+      let analysis;
+      try {
+        let aiText = aiResponse.text();
+        console.log('Raw AI response:', aiText);
+        
+        // Clean up markdown formatting if present
+        aiText = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        
+        analysis = JSON.parse(aiText);
+        console.log('Parsed AI analysis:', analysis);
+      } catch (parseError) {
+        // Fallback if JSON parsing fails - use keyword analysis
+        console.log('AI parsing failed:', parseError);
+        console.log('AI response text:', aiResponse.text());
+        analysis = analyzePromptKeywords(prompt);
+      }
+
+      // Generate specific suggestions based on intent
+      let suggestions;
+      let generatedContent;
+
+      if (analysis.intent === 'CREATE_STORYWORLD') {
+        const storyworldPrompt = `
+Create a storyworld based on: "${prompt}"
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO EXPLANATIONS.
+
+START YOUR RESPONSE WITH { AND END WITH }
+
+Format exactly like this:
+{"name": "Cyber-Norse Realms", "description": "A futuristic world where ancient Norse gods control digital networks and quantum realms. Hackers must navigate both code and mythology to prevent Ragnarok 2.0.", "genre": "cyberpunk fantasy", "themes": ["technology", "mythology", "rebellion", "destiny"]}
+        `;
+
+        // Use AI to generate storyworld concept
+        const storyworldResponse = await generate({
+          model: gemini15Flash,
+          prompt: storyworldPrompt,
+        });
+
+        try {
+          let storyworldText = storyworldResponse.text();
+          console.log('Raw storyworld response:', storyworldText);
+          
+          // Clean up markdown formatting if present
+          storyworldText = storyworldText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+          
+          generatedContent = { storyworld: JSON.parse(storyworldText) };
+          console.log('Generated storyworld:', generatedContent.storyworld);
+        } catch (parseError) {
+          // Fallback to generated content if AI parsing fails
+          console.log('Storyworld AI parsing failed:', parseError);
+          console.log('Storyworld response text:', storyworldResponse.text());
+          generatedContent = {
+            storyworld: generateStoryworldFromPrompt(prompt, analysis.extractedEntities)
+          };
+        }
+
+        suggestions = {
+          type: 'create_storyworld' as const,
+          title: 'Create Your Storyworld',
+          description: `I can help you create "${generatedContent.storyworld.name}" - a ${generatedContent.storyworld.genre.toLowerCase()} universe.`,
+          action: {
+            function: 'createStoryworld',
+            parameters: {
+              name: generatedContent.storyworld.name,
+              description: generatedContent.storyworld.description,
+            }
+          },
+          alternatives: [
+            {
+              title: 'Start with a Character',
+              description: 'Begin by creating a compelling main character for your story.',
+              action: {
+                function: 'createAsset',
+                parameters: { type: 'CHARACTER' }
+              }
+            },
+            {
+              title: 'Write the Opening Scene',
+              description: 'Start with a captivating storyline to set the tone.',
+              action: {
+                function: 'createAsset',
+                parameters: { type: 'STORYLINE' }
+              }
+            }
+          ]
+        };
+      } else if (analysis.intent === 'CREATE_ASSET') {
+        const assetType = analysis.extractedEntities?.assetType || 'CHARACTER';
+        
+        suggestions = {
+          type: 'create_asset' as const,
+          title: `Create Your ${assetType}`,
+          description: `Let's bring your ${assetType.toLowerCase()} concept to life with structured details.`,
+          action: {
+            function: 'createAsset',
+            parameters: { 
+              type: assetType,
+              name: analysis.extractedEntities?.assetName || `New ${assetType}`
+            }
+          }
+        };
+      } else if (analysis.intent === 'ENHANCE_EXISTING') {
+        suggestions = {
+          type: 'enhance_asset' as const,
+          title: 'Enhance Your Storyworld',
+          description: 'I can help expand your existing storyworld with new characters, lore, or storylines.',
+          action: {
+            function: 'enhanceStoryworld',
+            parameters: {
+              storyworldId: userContext?.currentStoryworldId,
+              enhancementType: 'expand_lore'
+            }
+          }
+        };
+      } else {
+        suggestions = {
+          type: 'general_advice' as const,
+          title: 'Creative Guidance',
+          description: 'Here are some ways I can help with your storytelling journey.',
+        };
+      }
+
+      const response: AIPromptResponse = {
+        success: true,
+        analysis: {
+          intent: analysis.intent || 'GENERAL_HELP',
+          confidence: analysis.confidence || 0.5,
+          extractedEntities: analysis.extractedEntities || {}
+        },
+        suggestions,
+        generatedContent
+      };
+
+      // Log for analytics
+      functions.logger.info('Creative prompt processed', {
+        uid,
+        intent: analysis.intent,
+        confidence: analysis.confidence,
+        hasGeneratedContent: !!generatedContent
+      });
+
+      return response;
+    } catch (error) {
+      functions.logger.error('Error processing creative prompt', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to process prompt'
+      );
+    }
+  }
+);
+
+export const enhanceStoryworld = functions.https.onCall(
+  async (data: StoryworldEnhancementRequest, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { storyworldId, userId, enhancementType } = data;
+    const uid = context.auth.uid;
+
+    if (uid !== userId) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'User ID mismatch'
+      );
+    }
+
+    try {
+      const db = admin.firestore();
+      
+      // Get storyworld details
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      const storyworld = storyworldDoc.data();
+      if (!storyworld) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Storyworld not found'
+        );
+      }
+      
+      // Future: Get existing assets for AI context when implementing full AI enhancement
+      // const assetsSnapshot = await db
+      //   .collection('assets')
+      //   .where('storyworldId', '==', storyworldId)
+      //   .limit(20)
+      //   .get();
+
+      // const existingAssets = assetsSnapshot.docs.map(doc => ({
+      //   type: doc.data().type,
+      //   name: doc.data().name,
+      //   description: doc.data().description || ''
+      // }));
+
+      // Generate basic enhancement suggestions (will be enhanced with AI later)
+      let suggestions: Array<{
+        type: AssetType;
+        name: string;
+        description: string;
+        content: any;
+        reasoning: string;
+      }> = [];
+      
+      if (enhancementType === 'expand_lore') {
+        suggestions = [
+          {
+            type: 'LORE' as const,
+            name: 'Ancient History',
+            description: 'Explore the foundational events that shaped your storyworld.',
+            content: { description: 'Add details about the origins and early history of your world.' },
+            reasoning: 'Rich backstory adds depth and authenticity to your universe.'
+          },
+          {
+            type: 'LORE' as const,
+            name: 'Cultural Traditions',
+            description: 'Define the customs and beliefs of your world\'s inhabitants.',
+            content: { description: 'Detail the cultural practices and social structures.' },
+            reasoning: 'Cultural depth makes your world feel lived-in and authentic.'
+          }
+        ];
+      } else if (enhancementType === 'create_characters') {
+        suggestions = [
+          {
+            type: 'CHARACTER' as const,
+            name: 'Mysterious Mentor',
+            description: 'An wise figure who guides others through their journey.',
+            content: { description: 'A character with deep knowledge and hidden motivations.' },
+            reasoning: 'Mentors create opportunities for character growth and plot development.'
+          }
+        ];
+      } else if (enhancementType === 'develop_storylines') {
+        suggestions = [
+          {
+            type: 'STORYLINE' as const,
+            name: 'The Catalyst Event',
+            description: 'A pivotal moment that sets everything in motion.',
+            content: { tiptapJSON: {}, plainText: 'The event that changes everything...' },
+            reasoning: 'Strong opening events hook readers and drive the narrative forward.'
+          }
+        ];
+      }
+
+      // Future AI enhancement will go here
+
+      const response: StoryworldEnhancementResponse = {
+        success: true,
+        suggestions: suggestions.slice(0, 5) // Limit to 5 suggestions
+      };
+
+      functions.logger.info('Storyworld enhancement generated', {
+        uid,
+        storyworldId,
+        enhancementType,
+        suggestionCount: suggestions.length
+      });
+
+      return response;
+    } catch (error) {
+      functions.logger.error('Error enhancing storyworld', { uid, storyworldId, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to generate enhancements'
       );
     }
   }

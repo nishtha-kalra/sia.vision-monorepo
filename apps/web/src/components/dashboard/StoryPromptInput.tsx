@@ -8,6 +8,7 @@ interface StoryPromptInputProps {
   onPromptSubmit: () => void;
   suggestions: string[];
   onUseSuggestion: (suggestion: string) => void;
+  isProcessing?: boolean;
 }
 
 export const StoryPromptInput = ({ 
@@ -15,7 +16,8 @@ export const StoryPromptInput = ({
   onPromptInputChange, 
   onPromptSubmit, 
   suggestions, 
-  onUseSuggestion 
+  onUseSuggestion,
+  isProcessing = false
 }: StoryPromptInputProps) => {
   const [isTyping, setIsTyping] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -108,27 +110,36 @@ export const StoryPromptInput = ({
           {/* Create Button */}
           <button
             className={`flex gap-2 items-center px-6 py-3 rounded-xl transition-all duration-200 font-medium text-sm ${
-              promptInput.trim()
+              promptInput.trim() && !isProcessing
                 ? 'bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#5B5BD6] hover:to-[#7C3AED] text-white shadow-lg hover:shadow-xl transform hover:scale-105'
                 : 'bg-[#F3F4F6] text-[#9CA3AF] cursor-not-allowed'
             }`}
             onClick={handleCreateClick}
-            disabled={!promptInput.trim()}
+            disabled={!promptInput.trim() || isProcessing}
           >
-            <svg
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              className="w-4 h-4"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-            <span>Create with AI</span>
+            {isProcessing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                <span>Processing...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  className="w-4 h-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                <span>Create with AI</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -154,12 +165,12 @@ export const StoryPromptInput = ({
       )}
 
       {/* AI Processing Indicator */}
-      {isTyping && promptInput.length > 20 && (
+      {(isTyping && promptInput.length > 20) || isProcessing ? (
         <div className="mt-3 flex items-center gap-2 text-sm text-[#6366F1]">
           <div className="w-2 h-2 bg-[#6366F1] rounded-full animate-pulse"></div>
-          <span>AI is analyzing your prompt...</span>
+          <span>{isProcessing ? 'AI is processing your request...' : 'AI is analyzing your prompt...'}</span>
         </div>
-      )}
+      ) : null}
 
       {/* Suggestion pills - only show if no smart suggestions are active */}
       {suggestions.length > 0 && !isFocused && promptInput.length === 0 && (

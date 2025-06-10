@@ -9,12 +9,22 @@ import { Canvas } from './Canvas';
 import { StoryworldHub } from './StoryworldHub';
 import { Explore } from './Explore';
 import { OnboardingFlow } from './OnboardingFlow';
+import { StoryworldConfirmationModal } from './StoryworldConfirmationModal';
 import { Asset, Project, AssetContent } from './types';
 import { Asset as BackendAsset, Storyworld } from '@/types';
+import { useFirebaseFunctions } from '@/hooks/useFirebaseFunctions';
+import { useAuthState } from '@/hooks/useAuth';
 
 export const DashboardContainer = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [promptInput, setPromptInput] = useState('');
+  const [isProcessingPrompt, setIsProcessingPrompt] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  
+  // Storyworld confirmation modal state
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [pendingStoryworldDetails, setPendingStoryworldDetails] = useState<any>(null);
+  const [aiConfidence, setAiConfidence] = useState(0);
   const [suggestions] = useState([
     'Create a cyberpunk character with Norse mythology elements',
     'Design a futuristic city where ancient gods control the internet',
@@ -37,16 +47,194 @@ export const DashboardContainer = () => {
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false); // In real app, detect first-time users
   
-  const handlePromptSubmit = () => {
-    if (promptInput.trim()) {
-      console.log('Processing prompt:', promptInput);
-      // In real app: analyze prompt and either create asset or show suggestions
-      setPromptInput('');
+  // Hooks
+  const { processCreativePrompt, createStoryworld, enhanceStoryworld } = useFirebaseFunctions();
+  const [user] = useAuthState();
+
+  const handlePromptSubmit = async () => {
+    if (promptInput.trim() && user) {
+      setIsProcessingPrompt(true);
+      try {
+        console.log('🤖 Processing prompt with AI:', promptInput);
+        
+        // Process the prompt with AI
+        const aiResponse = await processCreativePrompt({
+          prompt: promptInput.trim(),
+          userId: user.uid,
+          context: {
+            currentStoryworldId: currentProject?.id,
+            lastActivity: activeTab
+          }
+        });
+
+        console.log('🎯 AI Response:', aiResponse);
+
+        if (aiResponse.success) {
+          console.log('✅ AI Response successful');
+          console.log('📊 Analysis:', aiResponse.analysis);
+          console.log('💡 Suggestions:', aiResponse.suggestions);
+          console.log('🎭 Generated Content:', aiResponse.generatedContent);
+          
+          // Store AI suggestions for display  
+          const suggestions = [{
+            ...aiResponse.suggestions,
+            type: aiResponse.suggestions.type || 'general_advice'
+          }];
+          if (aiResponse.suggestions.alternatives) {
+            const alternativesWithType = aiResponse.suggestions.alternatives.map(alt => ({
+              ...alt,
+              type: alt.type || aiResponse.suggestions.type || 'general_advice'
+            }));
+            suggestions.push(...alternativesWithType);
+          }
+          
+          console.log('🔄 Setting AI suggestions:', suggestions);
+          setAiSuggestions(suggestions);
+
+          // Check if we should show confirmation modal for storyworld creation
+          console.log(`🎯 Confidence: ${aiResponse.analysis.confidence}, Threshold: 0.8`);
+          if (aiResponse.analysis.confidence > 0.8 && aiResponse.suggestions.action?.function === 'createStoryworld' && aiResponse.generatedContent?.storyworld) {
+            console.log('📋 Showing confirmation modal for storyworld creation');
+            
+            // Store complete AI context for database storage
+            const aiContext = {
+              originalPrompt: promptInput.trim(),
+              aiResponse: aiResponse,
+              storyworld: aiResponse.generatedContent.storyworld
+            };
+            
+            const modalDetails = {
+              ...aiResponse.generatedContent.storyworld,
+              aiContext // Store AI context for later use
+            };
+            
+            console.log('🎭 Setting modal details:', modalDetails);
+            console.log('🎯 AI confidence:', aiResponse.analysis.confidence);
+            
+            setPendingStoryworldDetails(modalDetails);
+            setAiConfidence(aiResponse.analysis.confidence);
+            setShowConfirmationModal(true);
+          } else if (aiResponse.analysis.confidence > 0.8 && aiResponse.suggestions.action) {
+            console.log('🚀 Auto-executing non-storyworld action:', aiResponse.suggestions.action);
+            await executeAiSuggestion(aiResponse.suggestions.action, aiResponse.generatedContent);
+          } else {
+            console.log('⏸️ Not auto-executing - confidence too low or no action available');
+          }
+        } else {
+          console.log('❌ AI Response failed:', aiResponse);
+        }
+      } catch (error) {
+        console.error('Failed to process prompt:', error);
+        // Fallback to basic handling
+        console.log('Using fallback processing for:', promptInput);
+      } finally {
+        setIsProcessingPrompt(false);
+        setPromptInput('');
+      }
+    }
+  };
+
+  const executeAiSuggestion = async (action: any, generatedContent?: any) => {
+    try {
+      if (action.function === 'createStoryworld' && generatedContent?.storyworld) {
+        console.log('🏗️ Creating storyworld from AI suggestion:', generatedContent.storyworld);
+        
+        const result = await createStoryworld({
+          name: generatedContent.storyworld.name,
+          description: generatedContent.storyworld.description
+        });
+
+        // Navigate to the new storyworld
+        const newProject: Project = {
+          id: result.storyworldId,
+          ownerId: user?.uid || 'current_user',
+          name: generatedContent.storyworld.name,
+          description: generatedContent.storyworld.description,
+          visibility: 'PRIVATE',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          stats: {
+            totalAssets: 0,
+            characters: 0,
+            storylines: 0,
+            loreEntries: 0
+          }
+        };
+        
+        setCurrentProject(newProject);
+        setViewingStoryworldHub(true);
+        setActiveTab('library');
+
+      } else if (action.function === 'createAsset') {
+        console.log('📝 Creating asset from AI suggestion:', action.parameters);
+        handleCreateAsset(action.parameters.type);
+      }
+    } catch (error) {
+      console.error('Failed to execute AI suggestion:', error);
     }
   };
 
   const handleUseSuggestion = (suggestion: string) => {
     setPromptInput(suggestion);
+  };
+
+  const handleUseAiSuggestion = async (suggestion: any) => {
+    if (suggestion.action) {
+      await executeAiSuggestion(suggestion.action);
+    } else {
+      setPromptInput(suggestion.title);
+    }
+  };
+
+  const handleConfirmStoryworld = async (details: any) => {
+    try {
+      console.log('🏗️ Creating confirmed storyworld:', details);
+      
+      // Prepare AI context for database storage
+      const aiContextForDb = details.aiContext ? {
+        originalPrompt: details.aiContext.originalPrompt,
+        aiResponse: details.aiContext.aiResponse,
+        confidence: aiConfidence,
+      } : undefined;
+      
+      const result = await createStoryworld({
+        name: details.name,
+        description: details.description,
+        aiContext: aiContextForDb
+      });
+
+      // Navigate to the new storyworld
+      const newProject: Project = {
+        id: result.storyworldId,
+        ownerId: user?.uid || 'current_user',
+        name: details.name,
+        description: details.description,
+        visibility: 'PRIVATE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        stats: {
+          totalAssets: 0,
+          characters: 0,
+          storylines: 0,
+          loreEntries: 0
+        }
+      };
+      
+      setCurrentProject(newProject);
+      setViewingStoryworldHub(true);
+      setActiveTab('library');
+      setShowConfirmationModal(false);
+      setPendingStoryworldDetails(null);
+      
+      console.log('✅ Storyworld created and navigation complete');
+    } catch (error) {
+      console.error('Failed to create confirmed storyworld:', error);
+    }
+  };
+
+  const handleCloseConfirmation = () => {
+    setShowConfirmationModal(false);
+    setPendingStoryworldDetails(null);
   };
 
   const getDefaultAssetContent = (assetType: Asset['type']): AssetContent => {
@@ -190,6 +378,10 @@ export const DashboardContainer = () => {
             suggestions={suggestions}
             onUseSuggestion={handleUseSuggestion}
             onCreateAsset={handleCreateAsset}
+            // AI-enhanced props
+            isProcessingPrompt={isProcessingPrompt}
+            aiSuggestions={aiSuggestions}
+            onUseAiSuggestion={handleUseAiSuggestion}
           />
         );
       
@@ -299,11 +491,29 @@ export const DashboardContainer = () => {
           if (tab !== 'library') {
             setViewingStoryworldHub(false);
           }
+          // Clear AI suggestions when changing tabs
+          if (tab !== 'dashboard') {
+            setAiSuggestions([]);
+          }
         }}
       />
       <main className="flex-1 overflow-hidden">
         {renderMainContent()}
       </main>
+      
+      {/* Storyworld Confirmation Modal */}
+      <StoryworldConfirmationModal
+        isOpen={showConfirmationModal}
+        onClose={handleCloseConfirmation}
+        onConfirm={handleConfirmStoryworld}
+        initialDetails={pendingStoryworldDetails && pendingStoryworldDetails.name ? pendingStoryworldDetails : {
+          name: 'AI Generated Storyworld',
+          description: 'A creative universe generated by AI',
+          genre: 'fantasy',
+          themes: ['adventure', 'creativity']
+        }}
+        confidence={aiConfidence}
+      />
     </div>
   );
 }; 

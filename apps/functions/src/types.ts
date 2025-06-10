@@ -98,4 +98,81 @@ export interface MediaProcessingResult {
     fileSize: number;
     mimeType: string;
   };
+}
+
+// AI Assistant Interfaces
+export interface AIPromptRequest {
+  prompt: string;
+  userId: string;
+  context?: {
+    existingStoryworlds?: string[];
+    currentStoryworldId?: string;
+    lastActivity?: string;
+  };
+}
+
+export interface AIPromptResponse {
+  success: boolean;
+  analysis: {
+    intent: 'CREATE_STORYWORLD' | 'CREATE_ASSET' | 'ENHANCE_EXISTING' | 'GENERAL_HELP';
+    confidence: number;
+    extractedEntities: {
+      storyworldName?: string;
+      assetType?: AssetType;
+      assetName?: string;
+      genre?: string;
+      themes?: string[];
+      characters?: string[];
+      concepts?: string[];
+    };
+  };
+  suggestions: {
+    type: 'create_storyworld' | 'create_asset' | 'enhance_asset' | 'general_advice';
+    title: string;
+    description: string;
+    action?: {
+      function: string;
+      parameters: any;
+    };
+    alternatives?: Array<{
+      title: string;
+      description: string;
+      action?: {
+        function: string;
+        parameters: any;
+      };
+    }>;
+  };
+  generatedContent?: {
+    storyworld?: {
+      name: string;
+      description: string;
+      genre: string;
+      themes: string[];
+    };
+    asset?: {
+      name: string;
+      type: AssetType;
+      content: any;
+      description: string;
+    };
+  };
+}
+
+export interface StoryworldEnhancementRequest {
+  storyworldId: string;
+  userId: string;
+  enhancementType: 'expand_lore' | 'create_characters' | 'develop_storylines' | 'add_themes';
+  context?: string;
+}
+
+export interface StoryworldEnhancementResponse {
+  success: boolean;
+  suggestions: Array<{
+    type: AssetType;
+    name: string;
+    description: string;
+    content: any;
+    reasoning: string;
+  }>;
 } 

@@ -11,6 +11,84 @@ import type {
   AssetType
 } from '@/types';
 
+// AI Assistant Types
+interface AIPromptRequest {
+  prompt: string;
+  userId: string;
+  context?: {
+    existingStoryworlds?: string[];
+    currentStoryworldId?: string;
+    lastActivity?: string;
+  };
+}
+
+interface AIPromptResponse {
+  success: boolean;
+  analysis: {
+    intent: 'CREATE_STORYWORLD' | 'CREATE_ASSET' | 'ENHANCE_EXISTING' | 'GENERAL_HELP';
+    confidence: number;
+    extractedEntities: {
+      storyworldName?: string;
+      assetType?: AssetType;
+      assetName?: string;
+      genre?: string;
+      themes?: string[];
+      characters?: string[];
+      concepts?: string[];
+    };
+  };
+  suggestions: {
+    type: 'create_storyworld' | 'create_asset' | 'enhance_asset' | 'general_advice';
+    title: string;
+    description: string;
+    action?: {
+      function: string;
+      parameters: any;
+    };
+    alternatives?: Array<{
+      type?: 'create_storyworld' | 'create_asset' | 'enhance_asset' | 'general_advice';
+      title: string;
+      description: string;
+      action?: {
+        function: string;
+        parameters: any;
+      };
+    }>;
+  };
+  generatedContent?: {
+    storyworld?: {
+      name: string;
+      description: string;
+      genre: string;
+      themes: string[];
+    };
+    asset?: {
+      name: string;
+      type: AssetType;
+      content: any;
+      description: string;
+    };
+  };
+}
+
+interface StoryworldEnhancementRequest {
+  storyworldId: string;
+  userId: string;
+  enhancementType: 'expand_lore' | 'create_characters' | 'develop_storylines' | 'add_themes';
+  context?: string;
+}
+
+interface StoryworldEnhancementResponse {
+  success: boolean;
+  suggestions: Array<{
+    type: AssetType;
+    name: string;
+    description: string;
+    content: any;
+    reasoning: string;
+  }>;
+}
+
 interface UploadProgress {
   fileName: string;
   progress: number;
@@ -33,6 +111,11 @@ export const useFirebaseFunctions = () => {
     name: string;
     description: string;
     coverImageUrl?: string;
+    aiContext?: {
+      originalPrompt: string;
+      aiResponse: any;
+      confidence: number;
+    };
   }): Promise<{ storyworldId: string }> => {
     const fn = httpsCallable(validateFunctions(), 'createStoryworld');
     const result = await fn(data);
@@ -308,6 +391,19 @@ export const useFirebaseFunctions = () => {
     setUploadProgress({});
   }, []);
 
+  // AI Assistant Functions
+  const processCreativePrompt = useCallback(async (data: AIPromptRequest): Promise<AIPromptResponse> => {
+    const fn = httpsCallable(validateFunctions(), 'processCreativePrompt');
+    const result = await fn(data);
+    return result.data as AIPromptResponse;
+  }, []);
+
+  const enhanceStoryworld = useCallback(async (data: StoryworldEnhancementRequest): Promise<StoryworldEnhancementResponse> => {
+    const fn = httpsCallable(validateFunctions(), 'enhanceStoryworld');
+    const result = await fn(data);
+    return result.data as StoryworldEnhancementResponse;
+  }, []);
+
   return {
     // Storyworld functions
     createStoryworld,
@@ -325,6 +421,10 @@ export const useFirebaseFunctions = () => {
     uploadMediaDirect,
     uploadMediaAsset,
     uploadMultipleAssets,
+    
+    // AI Assistant functions
+    processCreativePrompt,
+    enhanceStoryworld,
     
     // State
     uploading,
