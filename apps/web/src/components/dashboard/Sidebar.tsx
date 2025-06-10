@@ -8,10 +8,9 @@ import { useRouter } from 'next/navigation';
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onLibraryOpen: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLibraryOpen }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const { authUser: user } = useUser();
   const router = useRouter();
 
@@ -54,10 +53,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLibr
             >
               <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
             </svg>
-            <span>Dashboard</span>
+            <div className="flex-1 text-left">
+              <span>Dashboard</span>
+              <div className="text-xs opacity-75 mt-0.5">Create & Discover</div>
+            </div>
           </button>
+          
           <button
-            onClick={onLibraryOpen}
+            onClick={() => onTabChange('library')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
               activeTab === 'library'
                 ? 'bg-[#6366F1] text-white shadow-sm'
@@ -71,13 +74,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLibr
             >
               <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
             </svg>
-            <span>Library</span>
+            <div className="flex-1 text-left">
+              <span>Library</span>
+              <div className="text-xs opacity-75 mt-0.5">Storyworlds & Canvas</div>
+            </div>
           </button>
 
           <button
-            onClick={() => onTabChange('storyworld')}
+            onClick={() => onTabChange('explore')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              activeTab === 'storyworld'
+              activeTab === 'explore'
                 ? 'bg-[#6366F1] text-white shadow-sm'
                 : 'text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB]'
             }`}
@@ -87,9 +93,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, onLibr
               fill="currentColor"
               viewBox="0 0 20 20"
             >
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
             </svg>
-            <span>Storyworld</span>
+            <div className="flex-1 text-left">
+              <span>Explore</span>
+              <div className="text-xs opacity-75 mt-0.5">Community & Discover</div>
+            </div>
           </button>
         </div>
       </div>
