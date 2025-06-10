@@ -476,6 +476,7 @@ export const AssetEditor = ({ asset, onAssetChange, onClose }: AssetEditorProps)
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState<'basic' | 'enhanced' | 'canvas'>('basic');
   const [problemCanvasNodes, setProblemCanvasNodes] = useState<ProblemCanvasNode[]>([]);
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize description based on asset type
   React.useEffect(() => {
@@ -710,7 +711,7 @@ export const AssetEditor = ({ asset, onAssetChange, onClose }: AssetEditorProps)
                           </div>
                         </div>
                         <button
-                          onClick={() => handleFileUpload(new File([], ''))}
+                          onClick={() => replaceFileInputRef.current?.click()}
                           className="px-4 py-2 bg-white border border-[#E5E7EB] rounded-lg hover:bg-[#F9FAFB] transition-colors text-sm"
                         >
                           Replace
@@ -768,6 +769,24 @@ export const AssetEditor = ({ asset, onAssetChange, onClose }: AssetEditorProps)
                       )}
                     </>
                   )}
+                  
+                  {/* Hidden file input for replace functionality */}
+                  <input
+                    ref={replaceFileInputRef}
+                    type="file"
+                    accept={
+                      asset.type === 'IMAGE' ? 'image/*' :
+                      asset.type === 'VIDEO' ? 'video/*' :
+                      asset.type === 'AUDIO' ? 'audio/*' : '*/*'
+                    }
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleFileUpload(file);
+                      }
+                    }}
+                    className="hidden"
+                  />
                 </div>
               )}
 
