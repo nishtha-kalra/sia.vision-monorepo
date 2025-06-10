@@ -3,9 +3,33 @@ import * as admin from "firebase-admin";
 import { PrivyClient } from "@privy-io/server-auth";
 import cors from "cors";
 import sgMail from "@sendgrid/mail";
+// Import Genkit and Google AI plugin libraries
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { configureGenkit } from '@genkit-ai/core';
+import { generate } from '@genkit-ai/ai';
+import { 
+  UploadRequest, 
+  UploadResponse, 
+  CreateAssetRequest, 
+  CreateAssetResponse,
+  MediaProcessingResult,
+  AssetType,
+  AIPromptRequest,
+  AIPromptResponse,
+  StoryworldEnhancementRequest,
+  StoryworldEnhancementResponse
+} from "./types";
 
 // Initialize Firebase Admin
 admin.initializeApp();
+
+// Configure Genkit
+configureGenkit({
+  plugins: [googleAI({
+    apiKey: functions.config().google?.ai_api_key,
+  })],
+  enableTracingAndMetrics: false,
+});
 
 // Initialize CORS
 const corsHandler = cors({origin: true});
@@ -803,6 +827,7 @@ export const createStoryworld = functions.https.onCall(
     const name = (data.name as string)?.trim();
     const description = (data.description as string)?.trim() || '';
     const coverImageUrl = (data.coverImageUrl as string) || null;
+    const aiContext = data.aiContext || null;
 
     if (!name) {
       throw new functions.https.HttpsError(
@@ -813,14 +838,35 @@ export const createStoryworld = functions.https.onCall(
 
     const db = admin.firestore();
     try {
-      const doc = await db.collection('storyworlds').add({
+      const storyworldData: any = {
         ownerId: context.auth.uid,
         name,
         description,
         coverImageUrl,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+
+      // Add AI context if provided
+      if (aiContext) {
+        storyworldData.aiGenerated = {
+          originalPrompt: aiContext.originalPrompt,
+          confidence: aiContext.confidence,
+          generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          aiAnalysis: {
+            intent: aiContext.aiResponse?.analysis?.intent,
+            extractedEntities: aiContext.aiResponse?.analysis?.extractedEntities,
+          },
+          // Store sanitized AI response (remove sensitive data)
+          suggestions: aiContext.aiResponse?.suggestions ? {
+            type: aiContext.aiResponse.suggestions.type,
+            title: aiContext.aiResponse.suggestions.title,
+            description: aiContext.aiResponse.suggestions.description,
+          } : null,
+        };
+      }
+
+      const doc = await db.collection('storyworlds').add(storyworldData);
 
       return { storyworldId: doc.id };
     } catch (error) {
@@ -1054,7 +1100,6 @@ export const getStoryworldAssets = functions.https.onCall(
       );
     }
 
-    const uid = context.auth.uid;
     const storyworldId = data.storyworldId as string;
     const filterByType = data.filterByType as string | undefined;
     const filterByIpStatus = data.filterByIpStatus as string | undefined;
@@ -1069,26 +1114,79 @@ export const getStoryworldAssets = functions.https.onCall(
 
     const db = admin.firestore();
     try {
-      let query: FirebaseFirestore.Query = db
-        .collection('assets')
-        .where('ownerId', '==', uid)
+      // First, verify user has access to this storyworld
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Storyworld not found'
+        );
+      }
+
+      // Verify user owns this storyworld
+      const storyworldData = storyworldDoc.data()!;
+      if (storyworldData.ownerId !== context.auth.uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Access denied: You are not the owner of this storyworld'
+        );
+      }
+
+      // Get asset relationships for this storyworld
+      const relationshipsQuery = db
+        .collection('asset-storyworld-relations')
         .where('storyworldId', '==', storyworldId);
 
-      if (filterByType) {
-        query = query.where('type', '==', filterByType);
+      const relationshipsSnapshot = await relationshipsQuery.get();
+      
+      if (relationshipsSnapshot.empty) {
+        return { assets: [] };
       }
 
-      if (filterByIpStatus) {
-        query = query.where('ipStatus', '==', filterByIpStatus);
+      // Get asset IDs from relationships
+      const assetIds = relationshipsSnapshot.docs.map(doc => doc.data().assetId);
+
+      // Fetch assets in batches (Firestore 'in' query limit is 10)
+      const assets: any[] = [];
+      const batchSize = 10;
+      
+      for (let i = 0; i < assetIds.length; i += batchSize) {
+        const batch = assetIds.slice(i, i + batchSize);
+        
+        let assetsQuery: FirebaseFirestore.Query = db
+          .collection('assets')
+          .where(admin.firestore.FieldPath.documentId(), 'in', batch)
+          .where('uploadedBy', '==', context.auth.uid); // Ensure only user's assets are returned
+
+        // Apply filters
+        if (filterByType) {
+          assetsQuery = assetsQuery.where('type', '==', filterByType);
+        }
+
+        if (filterByIpStatus) {
+          assetsQuery = assetsQuery.where('ipStatus', '==', filterByIpStatus);
+        }
+
+        const assetsSnapshot = await assetsQuery.get();
+        const batchAssets = assetsSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          const { content: _content, ...rest } = data;
+          return { id: doc.id, ...rest };
+        });
+
+        assets.push(...batchAssets);
       }
 
-      query = query.orderBy(sortBy as string, 'desc');
-
-      const snapshot = await query.get();
-      const assets = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        const { content: _content, ...rest } = data;
-        return { id: doc.id, ...rest };
+      // Sort assets
+      assets.sort((a, b) => {
+        const aValue = a[sortBy];
+        const bValue = b[sortBy];
+        
+        if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
+          return bValue?.toMillis() - aValue?.toMillis(); // Descending for dates
+        }
+        
+        return bValue > aValue ? 1 : -1; // Descending for strings
       });
 
       return { assets };
@@ -1123,7 +1221,7 @@ export const deleteAsset = functions.https.onCall(
       const assetRef = db.collection('assets').doc(assetId);
       const assetSnap = await assetRef.get();
 
-      if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
+      if (!assetSnap.exists || assetSnap.data()?.uploadedBy !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Asset not found or insufficient permissions'
@@ -1165,7 +1263,7 @@ export const confirmAssetRegistration = functions.https.onCall(
     try {
       const assetRef = db.collection('assets').doc(assetId);
       const assetSnap = await assetRef.get();
-      if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
+      if (!assetSnap.exists || assetSnap.data()?.uploadedBy !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid asset or insufficient permissions'
@@ -1184,6 +1282,301 @@ export const confirmAssetRegistration = functions.https.onCall(
       throw new functions.https.HttpsError(
         'internal',
         'Failed to confirm registration'
+      );
+    }
+  }
+);
+
+// ----------------------
+// Media Upload & Processing
+// ----------------------
+
+// Create a secure upload URL for media files
+export const getSecureUploadUrl = functions.https.onCall(
+  async (data: UploadRequest, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { fileName, contentType, fileSize, storyworldId, assetType } = data;
+    const uid = context.auth.uid;
+
+    // Validate input
+    if (!fileName || !contentType || !storyworldId || !assetType) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'fileName, contentType, storyworldId, and assetType are required'
+      );
+    }
+
+    // File size limits (50MB for videos, 10MB for images)
+    const maxSize = assetType === 'VIDEO' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (fileSize > maxSize) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `File size exceeds limit of ${maxSize / (1024 * 1024)}MB`
+      );
+    }
+
+    // Validate file type
+    const allowedTypes = {
+      IMAGE: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+      VIDEO: ['video/mp4', 'video/webm', 'video/quicktime'],
+      AUDIO: ['audio/mpeg', 'audio/wav', 'audio/ogg']
+    };
+
+    if (assetType in allowedTypes && !allowedTypes[assetType as keyof typeof allowedTypes].includes(contentType)) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Invalid file type for ${assetType}`
+      );
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+
+    try {
+      // Verify storyworld ownership
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      // Create asset document with flexible sharing model
+      const assetRef = await db.collection('assets').add({
+        uploadedBy: uid,
+        name: fileName.split('.')[0], // Remove extension for default name
+        type: assetType,
+        status: 'DRAFT',
+        ipStatus: 'UNREGISTERED',
+        onChainId: null,
+        mimeType: contentType,
+        fileSize,
+        visibility: 'STORYWORLD', // Default to storyworld-level sharing
+        allowRemixing: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create asset-storyworld relationship
+      await db.collection('asset-storyworld-relations').add({
+        assetId: assetRef.id,
+        storyworldId,
+        addedBy: uid,
+        role: 'OWNER',
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Generate unique file path
+      const fileExtension = fileName.split('.').pop();
+      const filePath = `assets/${assetRef.id}/original.${fileExtension}`;
+      const file = bucket.file(filePath);
+
+      // Generate signed URL for direct upload (expires in 15 minutes)
+      const [uploadUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType,
+      });
+
+      // Store upload metadata in asset
+      await assetRef.update({
+        filePath,
+        uploadUrl,
+        uploadExpiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 15 * 60 * 1000)),
+      });
+
+      const response: UploadResponse = {
+        uploadUrl,
+        assetId: assetRef.id,
+        filePath,
+      };
+
+      return response;
+    } catch (error) {
+      functions.logger.error('Error generating upload URL', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to generate upload URL'
+      );
+    }
+  }
+);
+
+// Process uploaded media file
+export const processUploadedMedia = functions.https.onCall(
+  async (data: { assetId: string }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { assetId } = data;
+    const uid = context.auth.uid;
+
+    if (!assetId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'assetId is required'
+      );
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+
+    try {
+      // Get asset document
+      const assetDoc = await db.collection('assets').doc(assetId).get();
+      if (!assetDoc.exists || assetDoc.data()?.uploadedBy !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Asset not found or insufficient permissions'
+        );
+      }
+
+      const assetData = assetDoc.data()!;
+      const filePath = assetData.filePath;
+
+      if (!filePath) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'No file path found for asset'
+        );
+      }
+
+      // Check if file exists in storage
+      const file = bucket.file(filePath);
+      const [exists] = await file.exists();
+
+      if (!exists) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Uploaded file not found in storage'
+        );
+      }
+
+      // Generate public download URL
+      await file.makePublic();
+      const mediaUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+      // Update asset with media URL and processing status
+      const updateData: any = {
+        mediaUrl,
+        status: 'PUBLISHED',
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // For images, could generate thumbnail here
+      if (assetData.type === 'IMAGE') {
+        // TODO: Add thumbnail generation
+        updateData.thumbnailUrl = mediaUrl; // Use original for now
+      }
+
+      await assetDoc.ref.update(updateData);
+
+      const result: MediaProcessingResult = {
+        success: true,
+        assetId,
+        mediaUrl,
+        thumbnailUrl: updateData.thumbnailUrl,
+        metadata: {
+          fileSize: assetData.fileSize,
+          mimeType: assetData.mimeType,
+        },
+      };
+
+      functions.logger.info('Media processing completed', { assetId, uid });
+      return result;
+    } catch (error) {
+      functions.logger.error('Error processing media', { assetId, uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to process uploaded media'
+      );
+    }
+  }
+);
+
+// Create asset without media (for text-based assets)
+export const createTextAsset = functions.https.onCall(
+  async (data: CreateAssetRequest & { content: any }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { storyworldId, name, type, description, tags, content } = data;
+    const uid = context.auth.uid;
+
+    if (!storyworldId || !name || !type || !content) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'storyworldId, name, type, and content are required'
+      );
+    }
+
+    const db = admin.firestore();
+
+    try {
+      // Verify storyworld ownership
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      // Create asset with flexible sharing model
+      const assetRef = await db.collection('assets').add({
+        uploadedBy: uid,
+        name: name.trim(),
+        type,
+        content,
+        description: description?.trim() || '',
+        tags: tags || [],
+        status: 'DRAFT',
+        ipStatus: 'UNREGISTERED',
+        onChainId: null,
+        visibility: 'STORYWORLD', // Default to storyworld-level sharing
+        allowRemixing: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create asset-storyworld relationship
+      await db.collection('asset-storyworld-relations').add({
+        assetId: assetRef.id,
+        storyworldId,
+        addedBy: uid,
+        role: 'OWNER',
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const response: CreateAssetResponse = {
+        assetId: assetRef.id,
+        success: true,
+      };
+
+      functions.logger.info('Text asset created', { assetId: assetRef.id, uid, type });
+      return response;
+    } catch (error) {
+      functions.logger.error('Error creating text asset', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to create asset'
       );
     }
   }
@@ -1230,4 +1623,516 @@ function generateUserEmailHtml(data: EnquiryData): string {
       </div>
     </div>
   `;
-} 
+}
+
+// Alternative upload method - server-side file handling
+export const uploadMediaDirect = functions.https.onCall(
+  async (data: { 
+    fileName: string; 
+    contentType: string; 
+    fileData: string; // base64 encoded file
+    storyworldId: string; 
+    assetType: AssetType 
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { fileName, contentType, fileData, storyworldId, assetType } = data;
+    const uid = context.auth.uid;
+
+    // Calculate accurate original file size from base64
+    // Base64 encoding: 3 bytes -> 4 characters, plus padding
+    const paddingChars = (fileData.match(/=/g) || []).length;
+    const actualFileSize = Math.floor((fileData.length * 3) / 4) - paddingChars;
+    
+    const maxSize = assetType === 'VIDEO' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (actualFileSize > maxSize) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `File size (${Math.round(actualFileSize / (1024 * 1024) * 100) / 100}MB) exceeds limit of ${maxSize / (1024 * 1024)}MB`
+      );
+    }
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+
+    try {
+      // Verify storyworld ownership
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      // Create asset document
+      const assetRef = await db.collection('assets').add({
+        uploadedBy: uid,
+        name: fileName.split('.')[0],
+        type: assetType,
+        status: 'DRAFT',
+        ipStatus: 'UNREGISTERED',
+        onChainId: null,
+        mimeType: contentType,
+        fileSize: actualFileSize,
+        visibility: 'STORYWORLD',
+        allowRemixing: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create asset-storyworld relationship
+      await db.collection('asset-storyworld-relations').add({
+        assetId: assetRef.id,
+        storyworldId,
+        addedBy: uid,
+        role: 'OWNER',
+        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Upload file directly from server
+      const fileExtension = fileName.split('.').pop();
+      const filePath = `assets/${assetRef.id}/original.${fileExtension}`;
+      const file = bucket.file(filePath);
+
+      // Convert base64 to buffer
+      const fileBuffer = Buffer.from(fileData, 'base64');
+
+      // Upload file
+      await file.save(fileBuffer, {
+        metadata: {
+          contentType,
+        },
+      });
+
+      // Make file public
+      await file.makePublic();
+      const mediaUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+      // Update asset with media URL
+      await assetRef.update({
+        filePath,
+        mediaUrl,
+        status: 'PUBLISHED',
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      functions.logger.info('Direct upload completed', { assetId: assetRef.id, uid });
+      
+      return {
+        success: true,
+        assetId: assetRef.id,
+        mediaUrl,
+      };
+    } catch (error) {
+      functions.logger.error('Error in direct upload', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to upload file'
+      );
+    }
+  }
+); 
+
+// Helper function for basic prompt analysis (will be enhanced with AI later)
+function analyzePromptKeywords(prompt: string) {
+  const lowerPrompt = prompt.toLowerCase();
+  let intent = 'GENERAL_HELP';
+  let confidence = 0.6;
+  const extractedEntities: any = {};
+
+  // Detect storyworld creation intent - broader detection
+  if (lowerPrompt.includes('create') || lowerPrompt.includes('story') || lowerPrompt.includes('world') || lowerPrompt.includes('universe') || lowerPrompt.includes('setting') || lowerPrompt.includes('cyberpunk') || lowerPrompt.includes('fantasy')) {
+    intent = 'CREATE_STORYWORLD';
+    confidence = 0.9;
+    
+    // Extract potential names and genres
+    const genreKeywords = ['fantasy', 'sci-fi', 'science fiction', 'cyberpunk', 'steampunk', 'horror', 'mystery', 'romance', 'adventure'];
+    const foundGenre = genreKeywords.find(genre => lowerPrompt.includes(genre));
+    if (foundGenre) extractedEntities.genre = foundGenre;
+    
+    const themeKeywords = ['magic', 'technology', 'gods', 'mythology', 'space', 'future', 'ancient', 'medieval'];
+    extractedEntities.themes = themeKeywords.filter(theme => lowerPrompt.includes(theme));
+  }
+  
+  // Detect asset creation intent
+  else if (lowerPrompt.includes('character') || lowerPrompt.includes('story') || lowerPrompt.includes('plot') || lowerPrompt.includes('lore')) {
+    intent = 'CREATE_ASSET';
+    confidence = 0.7;
+    
+    if (lowerPrompt.includes('character')) extractedEntities.assetType = 'CHARACTER';
+    else if (lowerPrompt.includes('story') || lowerPrompt.includes('plot')) extractedEntities.assetType = 'STORYLINE';
+    else if (lowerPrompt.includes('lore') || lowerPrompt.includes('background')) extractedEntities.assetType = 'LORE';
+  }
+  
+  // Detect enhancement intent
+  else if (lowerPrompt.includes('expand') || lowerPrompt.includes('add to') || lowerPrompt.includes('enhance')) {
+    intent = 'ENHANCE_EXISTING';
+    confidence = 0.7;
+  }
+
+  return { 
+    intent: intent as 'CREATE_STORYWORLD' | 'CREATE_ASSET' | 'ENHANCE_EXISTING' | 'GENERAL_HELP', 
+    confidence, 
+    extractedEntities 
+  };
+}
+
+// Helper function to generate storyworld from prompt
+function generateStoryworldFromPrompt(prompt: string, entities: any) {
+  const defaultGenre = entities.genre ? entities.genre.charAt(0).toUpperCase() + entities.genre.slice(1) : 'Fantasy';
+  
+  // Generate name based on prompt keywords
+  let name = 'New Creative Universe';
+  if (entities.themes && entities.themes.length > 0) {
+    const theme = entities.themes[0];
+    name = `Realm of ${theme.charAt(0).toUpperCase() + theme.slice(1)}`;
+  }
+  
+  const descriptions = [
+    'A unique universe where stories come to life and creativity knows no bounds.',
+    'An immersive world filled with endless possibilities for storytelling.',
+    'A creative realm where imagination meets structured narrative.',
+    'A dynamic universe waiting to be shaped by your storytelling vision.'
+  ];
+  
+  return {
+    name,
+    description: descriptions[Math.floor(Math.random() * descriptions.length)],
+    genre: defaultGenre,
+    themes: entities.themes || ['Adventure', 'Discovery', 'Creativity']
+  };
+}
+
+// AI Assistant Functions
+export const processCreativePrompt = functions.https.onCall(
+  async (data: AIPromptRequest, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { prompt, userId, context: userContext } = data;
+    const uid = context.auth.uid;
+
+    if (uid !== userId) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'User ID mismatch'
+      );
+    }
+
+    try {
+      const db = admin.firestore();
+      
+      // Get user's existing storyworlds for context
+      const userStoryworlds = await db
+        .collection('storyworlds')
+        .where('ownerId', '==', uid)
+        .limit(10)
+        .get();
+      userStoryworlds.docs.map(doc => doc.data().name);
+// Enhanced prompt for AI analysis
+      const analysisPrompt = `
+Analyze this creative prompt: "${prompt}"
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO EXPLANATIONS.
+
+START YOUR RESPONSE WITH { AND END WITH }
+
+Format exactly like this:
+{"intent": "CREATE_STORYWORLD", "confidence": 0.95, "extractedEntities": {"storyworldName": "Cyber-Valhalla", "genre": "cyberpunk fantasy", "themes": ["technology", "mythology"], "concepts": ["hackers", "gods"]}}
+      `;
+
+      // Use AI to analyze the prompt
+      const aiResponse = await generate({
+        model: gemini15Flash,
+        prompt: analysisPrompt,
+      });
+
+      // Parse AI response
+      let analysis;
+      try {
+        let aiText = aiResponse.text();
+        console.log('Raw AI response:', aiText);
+        
+        // Clean up markdown formatting if present
+        aiText = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        
+        analysis = JSON.parse(aiText);
+        console.log('Parsed AI analysis:', analysis);
+      } catch (parseError) {
+        // Fallback if JSON parsing fails - use keyword analysis
+        console.log('AI parsing failed:', parseError);
+        console.log('AI response text:', aiResponse.text());
+        analysis = analyzePromptKeywords(prompt);
+      }
+
+      // Generate specific suggestions based on intent
+      let suggestions;
+      let generatedContent;
+
+      if (analysis.intent === 'CREATE_STORYWORLD') {
+        const storyworldPrompt = `
+Create a storyworld based on: "${prompt}"
+
+YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO EXPLANATIONS.
+
+START YOUR RESPONSE WITH { AND END WITH }
+
+Format exactly like this:
+{"name": "Cyber-Norse Realms", "description": "A futuristic world where ancient Norse gods control digital networks and quantum realms. Hackers must navigate both code and mythology to prevent Ragnarok 2.0.", "genre": "cyberpunk fantasy", "themes": ["technology", "mythology", "rebellion", "destiny"]}
+        `;
+
+        // Use AI to generate storyworld concept
+        const storyworldResponse = await generate({
+          model: gemini15Flash,
+          prompt: storyworldPrompt,
+        });
+
+        try {
+          let storyworldText = storyworldResponse.text();
+          console.log('Raw storyworld response:', storyworldText);
+          
+          // Clean up markdown formatting if present
+          storyworldText = storyworldText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+          
+          generatedContent = { storyworld: JSON.parse(storyworldText) };
+          console.log('Generated storyworld:', generatedContent.storyworld);
+        } catch (parseError) {
+          // Fallback to generated content if AI parsing fails
+          console.log('Storyworld AI parsing failed:', parseError);
+          console.log('Storyworld response text:', storyworldResponse.text());
+          generatedContent = {
+            storyworld: generateStoryworldFromPrompt(prompt, analysis.extractedEntities)
+          };
+        }
+
+        suggestions = {
+          type: 'create_storyworld' as const,
+          title: 'Create Your Storyworld',
+          description: `I can help you create "${generatedContent.storyworld.name}" - a ${generatedContent.storyworld.genre.toLowerCase()} universe.`,
+          action: {
+            function: 'createStoryworld',
+            parameters: {
+              name: generatedContent.storyworld.name,
+              description: generatedContent.storyworld.description,
+            }
+          },
+          alternatives: [
+            {
+              title: 'Start with a Character',
+              description: 'Begin by creating a compelling main character for your story.',
+              action: {
+                function: 'createAsset',
+                parameters: { type: 'CHARACTER' }
+              }
+            },
+            {
+              title: 'Write the Opening Scene',
+              description: 'Start with a captivating storyline to set the tone.',
+              action: {
+                function: 'createAsset',
+                parameters: { type: 'STORYLINE' }
+              }
+            }
+          ]
+        };
+      } else if (analysis.intent === 'CREATE_ASSET') {
+        const assetType = analysis.extractedEntities?.assetType || 'CHARACTER';
+        
+        suggestions = {
+          type: 'create_asset' as const,
+          title: `Create Your ${assetType}`,
+          description: `Let's bring your ${assetType.toLowerCase()} concept to life with structured details.`,
+          action: {
+            function: 'createAsset',
+            parameters: { 
+              type: assetType,
+              name: analysis.extractedEntities?.assetName || `New ${assetType}`
+            }
+          }
+        };
+      } else if (analysis.intent === 'ENHANCE_EXISTING') {
+        suggestions = {
+          type: 'enhance_asset' as const,
+          title: 'Enhance Your Storyworld',
+          description: 'I can help expand your existing storyworld with new characters, lore, or storylines.',
+          action: {
+            function: 'enhanceStoryworld',
+            parameters: {
+              storyworldId: userContext?.currentStoryworldId,
+              enhancementType: 'expand_lore'
+            }
+          }
+        };
+      } else {
+        suggestions = {
+          type: 'general_advice' as const,
+          title: 'Creative Guidance',
+          description: 'Here are some ways I can help with your storytelling journey.',
+        };
+      }
+
+      const response: AIPromptResponse = {
+        success: true,
+        analysis: {
+          intent: analysis.intent || 'GENERAL_HELP',
+          confidence: analysis.confidence || 0.5,
+          extractedEntities: analysis.extractedEntities || {}
+        },
+        suggestions,
+        generatedContent
+      };
+
+      // Log for analytics
+      functions.logger.info('Creative prompt processed', {
+        uid,
+        intent: analysis.intent,
+        confidence: analysis.confidence,
+        hasGeneratedContent: !!generatedContent
+      });
+
+      return response;
+    } catch (error) {
+      functions.logger.error('Error processing creative prompt', { uid, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to process prompt'
+      );
+    }
+  }
+);
+
+export const enhanceStoryworld = functions.https.onCall(
+  async (data: StoryworldEnhancementRequest, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { storyworldId, userId, enhancementType } = data;
+    const uid = context.auth.uid;
+
+    if (uid !== userId) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'User ID mismatch'
+      );
+    }
+
+    try {
+      const db = admin.firestore();
+      
+      // Get storyworld details
+      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
+      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Invalid storyworld or insufficient permissions'
+        );
+      }
+
+      const storyworld = storyworldDoc.data();
+      if (!storyworld) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Storyworld not found'
+        );
+      }
+      
+      // Future: Get existing assets for AI context when implementing full AI enhancement
+      // const assetsSnapshot = await db
+      //   .collection('assets')
+      //   .where('storyworldId', '==', storyworldId)
+      //   .limit(20)
+      //   .get();
+
+      // const existingAssets = assetsSnapshot.docs.map(doc => ({
+      //   type: doc.data().type,
+      //   name: doc.data().name,
+      //   description: doc.data().description || ''
+      // }));
+
+      // Generate basic enhancement suggestions (will be enhanced with AI later)
+      let suggestions: Array<{
+        type: AssetType;
+        name: string;
+        description: string;
+        content: any;
+        reasoning: string;
+      }> = [];
+      
+      if (enhancementType === 'expand_lore') {
+        suggestions = [
+          {
+            type: 'LORE' as const,
+            name: 'Ancient History',
+            description: 'Explore the foundational events that shaped your storyworld.',
+            content: { description: 'Add details about the origins and early history of your world.' },
+            reasoning: 'Rich backstory adds depth and authenticity to your universe.'
+          },
+          {
+            type: 'LORE' as const,
+            name: 'Cultural Traditions',
+            description: 'Define the customs and beliefs of your world\'s inhabitants.',
+            content: { description: 'Detail the cultural practices and social structures.' },
+            reasoning: 'Cultural depth makes your world feel lived-in and authentic.'
+          }
+        ];
+      } else if (enhancementType === 'create_characters') {
+        suggestions = [
+          {
+            type: 'CHARACTER' as const,
+            name: 'Mysterious Mentor',
+            description: 'An wise figure who guides others through their journey.',
+            content: { description: 'A character with deep knowledge and hidden motivations.' },
+            reasoning: 'Mentors create opportunities for character growth and plot development.'
+          }
+        ];
+      } else if (enhancementType === 'develop_storylines') {
+        suggestions = [
+          {
+            type: 'STORYLINE' as const,
+            name: 'The Catalyst Event',
+            description: 'A pivotal moment that sets everything in motion.',
+            content: { tiptapJSON: {}, plainText: 'The event that changes everything...' },
+            reasoning: 'Strong opening events hook readers and drive the narrative forward.'
+          }
+        ];
+      }
+
+      // Future AI enhancement will go here
+
+      const response: StoryworldEnhancementResponse = {
+        success: true,
+        suggestions: suggestions.slice(0, 5) // Limit to 5 suggestions
+      };
+
+      functions.logger.info('Storyworld enhancement generated', {
+        uid,
+        storyworldId,
+        enhancementType,
+        suggestionCount: suggestions.length
+      });
+
+      return response;
+    } catch (error) {
+      functions.logger.error('Error enhancing storyworld', { uid, storyworldId, error });
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to generate enhancements'
+      );
+    }
+  }
+); 

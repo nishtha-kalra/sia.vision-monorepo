@@ -5,8 +5,9 @@ A comprehensive story creation and publishing platform with phone-first authenti
 ## 🌟 Key Features
 
 ### **🎨 Story Creation Platform**
-- **AI-Powered Story Builder**: ChatGPT-style interface for creating stories and characters
-- **Notion-Style Canvas**: Clean, intuitive writing interface with slash commands and inline formatting ✨ NEW
+- **AI-Powered Storyworld Creation**: Google Genkit integration with Gemini 1.5 Flash for intelligent story generation ✨ NEW
+- **Smart Confirmation System**: User-editable AI suggestions with confidence scoring and complete provenance ✨ NEW
+- **Notion-Style Canvas**: Clean, intuitive writing interface with slash commands and inline formatting
 - **Collections Library**: Organize and publish story collections with beautiful card-based interface
 - **Publishing Workflow**: One-click publishing with draft management and community sharing
 - **Asset Management**: Create and manage characters, lore, artifacts, and storyworlds
@@ -18,6 +19,7 @@ A comprehensive story creation and publishing platform with phone-first authenti
 - **⚡ Async Wallet Creation**: Fast authentication with background wallet provisioning
 
 ### **🎯 Modern User Experience**
+- **AI-Enhanced Dashboard**: Natural language story creation with intelligent suggestions ✨ NEW
 - **Dashboard-Centric Design**: Single-page app experience with sidebar navigation
 - **Responsive Design**: Beautiful, modern UI with Tailwind CSS
 - **Real-time Interactions**: Smooth animations and instant feedback
@@ -63,8 +65,9 @@ pnpm run type-check
 1. **Sign up with Google** - Fast social authentication
 2. **Phone verification** - Secure SMS-based verification (2-3 seconds)
 3. **Dashboard access** - Modern creative workspace with AI-powered tools
-4. **Story creation** - Use ChatGPT-style prompts to create stories and characters
-5. **Collection management** - Organize and publish your creative collections
+4. **AI Story creation** - Type natural language prompts to generate complete storyworlds ✨ NEW
+5. **Confirmation & editing** - Review and customize AI suggestions before creation ✨ NEW
+6. **Collection management** - Organize and publish your creative collections
 
 ## 🖥️ Local Development (Web Only)
 
@@ -139,13 +142,33 @@ sia-modern/
 └── deploy-functions.sh       # Backend-only deployment
 ```
 
+## 🤖 AI-Powered Story Creation
+
+### Google Genkit Integration ✨ NEW
+
+SIA Modern now features full AI capabilities powered by Google's Genkit framework:
+
+- **🧠 Gemini 1.5 Flash Model**: Advanced language model for creative story generation
+- **🎯 Intent Detection**: AI analyzes user prompts to understand creative goals
+- **📊 Confidence Scoring**: Intelligent routing based on AI confidence levels
+- **✏️ User Confirmation**: Editable AI suggestions before storyworld creation
+- **💾 Complete Provenance**: Full AI context stored for transparency and future improvements
+
+### AI Creation Flow
+
+1. **Natural Language Input**: Users type creative prompts in plain English
+2. **AI Processing**: System generates complete storyworld concepts with names, descriptions, genres, and themes
+3. **Smart Routing**: High-confidence results (>80%) show confirmation modal, lower confidence provides manual suggestions
+4. **User Control**: Edit all AI-generated details before confirming creation
+5. **Context Preservation**: Original prompts, AI analysis, and confidence scores stored in database
+
 ## 🎨 Story Creation Platform
 
 ### Dashboard Interface
 
-The main dashboard provides a modern, ChatGPT-style interface for story creation:
+The main dashboard provides a modern, AI-enhanced interface for story creation:
 
-- **🤖 AI Story Prompt**: Large text input with suggestion pills and smart submit
+- **🤖 AI Story Prompt**: Large text input with intelligent processing and suggestion pills
 - **⚡ Quick Actions**: Character Creator, World Builder, Story Architect, Dialogue Writer
 - **📚 Collections Library**: Beautiful card-based interface for organizing story collections
 - **👤 Profile Integration**: Seamless access to user profile and wallet information
@@ -190,8 +213,10 @@ The main dashboard provides a modern, ChatGPT-style interface for story creation
 - `provisionUserWallet`: Creates individual wallets on demand
 - `provisionAllWallets`: Bulk wallet creation for existing users
 
-#### Story & Asset Management
-- `createStoryworld`: Creates new story containers
+#### AI & Story Management ✨ NEW
+- `processCreativePrompt`: AI-powered storyworld generation using Gemini 1.5 Flash
+- `enhanceStoryworld`: AI enhancement of existing storyworlds with additional content
+- `createStoryworld`: Creates new story containers with optional AI context
 - `getUserStoryworlds`: Retrieves user's story collections
 - `saveAsset`: Creates/updates story assets (characters, lore, etc.)
 - `getAssetById`: Retrieves specific story assets

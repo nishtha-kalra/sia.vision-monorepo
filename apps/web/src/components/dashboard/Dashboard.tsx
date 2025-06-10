@@ -10,6 +10,10 @@ interface DashboardProps {
   suggestions: string[];
   onUseSuggestion: (suggestion: string) => void;
   onCreateAsset: (assetType: Asset['type']) => void;
+  // AI-enhanced props
+  isProcessingPrompt?: boolean;
+  aiSuggestions?: any[];
+  onUseAiSuggestion?: (suggestion: any) => void;
 }
 
 const LoadingSpinner = () => (
@@ -148,8 +152,11 @@ export const Dashboard = ({
   promptInput,
   onPromptInputChange,
   onPromptSubmit,
-                            onUseSuggestion,
+  onUseSuggestion,
   onCreateAsset,
+  isProcessingPrompt = false,
+  aiSuggestions = [],
+  onUseAiSuggestion,
 }: DashboardProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -292,16 +299,65 @@ export const Dashboard = ({
 
             {/* Enhanced Input Section */}
             <div className="max-w-3xl mx-auto mb-8">
-              <StoryPromptInput
-                promptInput={promptInput}
-                onPromptInputChange={onPromptInputChange}
-                onPromptSubmit={onPromptSubmit}
-                suggestions={[]} // We'll use smart suggestions instead
-                onUseSuggestion={onUseSuggestion}
-              />
+                          <StoryPromptInput
+              promptInput={promptInput}
+              onPromptInputChange={onPromptInputChange}
+              onPromptSubmit={onPromptSubmit}
+              suggestions={[]} // We'll use smart suggestions instead
+              onUseSuggestion={onUseSuggestion}
+              isProcessing={isProcessingPrompt}
+            />
               
-              {/* Smart AI Suggestions */}
-              {showSmartSuggestions && (
+              {/* AI Suggestions from Backend */}
+              {aiSuggestions.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-[#6B7280] mb-3">
+                    <div className="w-2 h-2 bg-[#10B981] rounded-full animate-pulse"></div>
+                    <span>AI detected your intent - here are some suggestions:</span>
+                  </div>
+                  {aiSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => onUseAiSuggestion?.(suggestion)}
+                      className="group w-full p-4 bg-white border border-[#E5E7EB] rounded-xl hover:border-[#6366F1] hover:shadow-lg transition-all duration-200 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-[#6366F1] rounded-lg flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-200">
+                          📖
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-medium text-[#111827] group-hover:text-[#6366F1] transition-colors">
+                              {suggestion.title}
+                            </h4>
+                            <div className="flex items-center gap-1 text-xs text-[#6B7280]">
+                              <span>90% match</span>
+                              <div className="w-2 h-2 bg-[#10B981] rounded-full"></div>
+                            </div>
+                          </div>
+                          <p className="text-sm text-[#6B7280]">{suggestion.description}</p>
+                        </div>
+                        <svg
+                          className="w-5 h-5 text-[#D1D5DB] group-hover:text-[#6366F1] group-hover:translate-x-1 transition-all duration-200"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {/* Local Smart Suggestions (fallback) */}
+              {aiSuggestions.length === 0 && showSmartSuggestions && (
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center gap-2 text-sm text-[#6B7280] mb-3">
                     <div className="w-2 h-2 bg-[#10B981] rounded-full animate-pulse"></div>

@@ -1,6 +1,9 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Storyworld } from '@/types';
 import { Asset, Project } from './types';
+import { useFirebaseFunctions } from '@/hooks/useFirebaseFunctions';
+import { useUser } from '@/hooks/useUser';
 
 interface LibraryProps {
   searchQuery: string;
@@ -8,7 +11,7 @@ interface LibraryProps {
   libraryFilter: string;
   onFilterChange: (filter: string) => void;
   onAssetSelect: (asset: Asset) => void;
-  onProjectSelect: (project: Project) => void;
+  onProjectSelect: (project: Storyworld) => void;
   onCreateProject: () => void;
 }
 
