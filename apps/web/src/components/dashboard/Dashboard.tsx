@@ -311,48 +311,96 @@ export const Dashboard = ({
               {/* AI Suggestions from Backend */}
               {aiSuggestions.length > 0 && (
                 <div className="mt-6 space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-[#6B7280] mb-3">
-                    <div className="w-2 h-2 bg-[#10B981] rounded-full animate-pulse"></div>
-                    <span>AI detected your intent - here are some suggestions:</span>
+                  <div className="bg-gradient-to-r from-[#6366F1]/5 to-[#8B5CF6]/5 rounded-xl border border-[#6366F1]/20 p-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#6366F1] rounded-lg flex items-center justify-center text-white text-sm">
+                        🤖
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-[#111827] mb-1">AI Analysis Complete</h4>
+                        <p className="text-sm text-[#6B7280]">
+                          I've analyzed your prompt and found {aiSuggestions.length} relevant suggestion{aiSuggestions.length > 1 ? 's' : ''} to help bring your vision to life.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  {aiSuggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => onUseAiSuggestion?.(suggestion)}
-                      className="group w-full p-4 bg-white border border-[#E5E7EB] rounded-xl hover:border-[#6366F1] hover:shadow-lg transition-all duration-200 text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#6366F1] rounded-lg flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-200">
-                          📖
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-medium text-[#111827] group-hover:text-[#6366F1] transition-colors">
-                              {suggestion.title}
-                            </h4>
-                            <div className="flex items-center gap-1 text-xs text-[#6B7280]">
-                              <span>90% match</span>
-                              <div className="w-2 h-2 bg-[#10B981] rounded-full"></div>
+                  
+                  {aiSuggestions.map((suggestion, index) => {
+                    const getIconForSuggestion = (type: string) => {
+                      switch (type) {
+                        case 'create_storyworld': return '🌍';
+                        case 'create_asset': return '📝';
+                        case 'enhance_asset': return '✨';
+                        default: return '💡';
+                      }
+                    };
+                    
+                    const getActionText = (suggestion: any) => {
+                      if (suggestion.action?.function === 'createStoryworld') {
+                        return 'Create Storyworld';
+                      } else if (suggestion.action?.function === 'createAsset') {
+                        return 'Create Asset';
+                      } else {
+                        return 'Apply Suggestion';
+                      }
+                    };
+                    
+                    return (
+                      <div
+                        key={index}
+                        className="group bg-white border border-[#E5E7EB] rounded-xl hover:border-[#6366F1] hover:shadow-lg transition-all duration-200 overflow-hidden"
+                      >
+                        <div className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-[#6366F1] rounded-lg flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-200">
+                              {getIconForSuggestion(suggestion.type)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium text-[#111827] group-hover:text-[#6366F1] transition-colors">
+                                  {suggestion.title}
+                                </h4>
+                                <div className="flex items-center gap-1 text-xs text-[#6B7280]">
+                                  <span>AI Powered</span>
+                                  <div className="w-2 h-2 bg-[#10B981] rounded-full animate-pulse"></div>
+                                </div>
+                              </div>
+                              <p className="text-sm text-[#6B7280] mb-3">{suggestion.description}</p>
+                              
+                              {/* Action Button */}
+                              <button
+                                onClick={() => onUseAiSuggestion?.(suggestion)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#5B5BD6] hover:to-[#7C3AED] text-white text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-lg transform hover:scale-105"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                <span>{getActionText(suggestion)}</span>
+                              </button>
                             </div>
                           </div>
-                          <p className="text-sm text-[#6B7280]">{suggestion.description}</p>
                         </div>
-                        <svg
-                          className="w-5 h-5 text-[#D1D5DB] group-hover:text-[#6366F1] group-hover:translate-x-1 transition-all duration-200"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
+                        
+                        {/* Alternative suggestions */}
+                        {suggestion.alternatives && suggestion.alternatives.length > 0 && (
+                          <div className="border-t border-[#F3F4F6] bg-[#F9FAFB] p-3">
+                            <p className="text-xs text-[#6B7280] mb-2">Alternative approaches:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {suggestion.alternatives.slice(0, 3).map((alt: any, altIndex: number) => (
+                                <button
+                                  key={altIndex}
+                                  onClick={() => onUseAiSuggestion?.(alt)}
+                                  className="text-xs px-3 py-1 bg-white border border-[#E5E7EB] rounded-lg hover:border-[#6366F1] hover:text-[#6366F1] transition-colors"
+                                >
+                                  {alt.title}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               

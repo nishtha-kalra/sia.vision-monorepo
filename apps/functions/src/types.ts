@@ -5,7 +5,97 @@ export type AssetType = 'CHARACTER' | 'STORYLINE' | 'LORE' | 'IMAGE' | 'VIDEO' |
 export type AssetStatus = 'DRAFT' | 'PUBLISHED' | 'REGISTERED';
 export type IPStatus = 'UNREGISTERED' | 'PENDING' | 'REGISTERED' | 'FAILED';
 
-// Core Asset Interface - extends existing structure
+// Story Protocol specific types
+export type LicenseType = 'PIL' | 'SPECIFIC' | 'DERIVATIVE';
+export type LicenseStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+export type RevenueSource = 'TIKTOK' | 'YOUTUBE' | 'INSTAGRAM' | 'CUSTOM' | 'NFT_SALE';
+
+// Story Protocol data structure
+export interface StoryProtocolData {
+  // Core Story Protocol identifiers
+  ipId: string; // Story Protocol IP Asset ID
+  licenseId?: string; // Default PIL license ID
+  txHash: string; // Registration transaction hash
+  registeredAt: Date;
+  
+  // IPFS metadata
+  metadataIpfsHash: string; // IPFS hash for metadata
+  mediaIpfsHash?: string; // IPFS hash for media file
+  
+  // License terms (from PIL)
+  licenseTerms: {
+    allowDerivatives: boolean;
+    commercialUse: boolean;
+    royaltyPercentage: number; // 0-100
+    territory: string; // 'GLOBAL' or country codes
+    attribution: boolean;
+  };
+  
+  // Parent/derivative relationships
+  parentIpId?: string; // If this is a derivative
+  derivativeIds: string[]; // Child derivatives
+  
+  // Revenue tracking
+  totalRevenue: number; // USD
+  totalRoyaltiesPaid: number; // USD
+  totalRoyaltiesEarned: number; // USD
+}
+
+// MongoDB-compatible Asset interface
+export interface MongoAsset {
+  _id: string; // MongoDB ObjectId as string
+  ownerId: string;
+  storyworldIds: string[]; // Support multiple storyworlds
+  name: string;
+  type: AssetType;
+  content?: any;
+  status: AssetStatus;
+  ipStatus: IPStatus;
+  
+  // Media-specific fields
+  media?: {
+    url: string;
+    mimeType: string;
+    size: number;
+    duration?: number; // For video/audio
+  };
+  
+  // Story Protocol fields (optional until registered)
+  storyProtocol?: StoryProtocolData;
+  
+  // Analytics
+  views?: number;
+  likes?: number;
+  
+  // Tags and categorization
+  tags?: string[];
+  description?: string;
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// MongoDB-compatible Storyworld interface  
+export interface MongoStoryworld {
+  _id: string;
+  ownerId: string;
+  name: string;
+  description: string;
+  coverImageUrl?: string | null;
+  visibility: 'PRIVATE' | 'PUBLIC';
+  tags?: string[];
+  stats?: {
+    totalAssets: number;
+    characters: number;
+    storylines: number;
+    loreEntries: number;
+  };
+  aiGenerated?: any; // Keep existing AI context
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Legacy Asset Interface for backward compatibility
 export interface Asset {
   id: string;
   ownerId: string; // Matches existing backend
@@ -40,7 +130,7 @@ export interface Asset {
   description?: string;
 }
 
-// Project/Storyworld Interface - extends existing structure
+// Legacy Storyworld Interface for backward compatibility
 export interface Storyworld {
   id: string;
   ownerId: string; // Matches existing backend
@@ -55,6 +145,50 @@ export interface Storyworld {
   assetCount?: number;
   views?: number;
   tags?: string[];
+}
+
+// License management interfaces
+export interface SpecificLicense {
+  _id: string;
+  ipId: string;
+  assetId: string;
+  licenseeAddress: string;
+  licenseType: 'PHYSICAL_GOODS' | 'DIGITAL_CONTENT' | 'MEDIA_ADAPTATION';
+  terms: {
+    quantity?: number; // For physical goods
+    territory: string;
+    validUntil?: Date;
+    price: number; // USD
+    royaltyPercentage: number;
+  };
+  status: LicenseStatus;
+  createdAt: Date;
+  txHash: string;
+}
+
+// Revenue reporting interfaces
+export interface RevenueReport {
+  _id: string;
+  assetId: string;
+  ipId: string;
+  reportedBy: string; // User ID
+  source: RevenueSource;
+  amount: number; // USD
+  reportedAt: Date;
+  period: {
+    startDate: Date;
+    endDate: Date;
+  };
+  royaltiesOwed: Array<{
+    recipientAddress: string;
+    amount: number;
+    percentage: number;
+  }>;
+  paymentStatus: 'PENDING' | 'PAID' | 'FAILED';
+  evidence?: {
+    screenshots: string[]; // URLs
+    apiData?: any; // Platform API responses
+  };
 }
 
 // Media Upload Interfaces
