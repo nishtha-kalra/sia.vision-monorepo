@@ -121,7 +121,15 @@ export const DashboardContainer = () => {
             console.log('⏸️ Not auto-executing - confidence too low or no action available');
           }
         } else {
-          console.log('❌ AI Response failed:', aiResponse);
+          console.log('⚠️ AI Response not successful, but showing suggestions anyway');
+          // Even if not successful, we might have useful suggestions
+          if (aiResponse.suggestions) {
+            const suggestions = [{
+              ...aiResponse.suggestions,
+              type: aiResponse.suggestions.type || 'general_advice'
+            }];
+            setAiSuggestions(suggestions);
+          }
         }
       } catch (error) {
         console.error('Failed to process prompt:', error);
@@ -189,24 +197,49 @@ export const DashboardContainer = () => {
   const handleConfirmStoryworld = async (details: any) => {
     try {
       console.log('🏗️ Creating confirmed storyworld:', details);
+      console.log('🔍 User:', user);
+      console.log('🔍 AI Context:', details.aiContext);
+      
+      // Validate required fields
+      if (!details.name || !details.description) {
+        throw new Error('Name and description are required');
+      }
+      
+      if (!user?.uid) {
+        throw new Error('User not authenticated');
+      }
       
       // Prepare AI context for database storage
       const aiContextForDb = details.aiContext ? {
         originalPrompt: details.aiContext.originalPrompt,
         aiResponse: details.aiContext.aiResponse,
         confidence: aiConfidence,
+        analysis: details.aiContext.aiResponse?.analysis,
+        generatedContent: details.aiContext.aiResponse?.generatedContent
       } : undefined;
       
+      console.log('📤 Calling createStoryworld with:', {
+        name: details.name,
+        description: details.description,
+        genre: details.genre,
+        themes: details.themes,
+        aiContext: aiContextForDb
+      });
+
       const result = await createStoryworld({
         name: details.name,
         description: details.description,
+        genre: details.genre,
+        themes: details.themes,
         aiContext: aiContextForDb
       });
+
+      console.log('✅ Storyworld created successfully:', result);
 
       // Navigate to the new storyworld
       const newProject: Project = {
         id: result.storyworldId,
-        ownerId: user?.uid || 'current_user',
+        ownerId: user.uid,
         name: details.name,
         description: details.description,
         visibility: 'PRIVATE',
@@ -220,6 +253,8 @@ export const DashboardContainer = () => {
         }
       };
       
+      console.log('🧭 Navigating to new storyworld:', newProject);
+      
       setCurrentProject(newProject);
       setViewingStoryworldHub(true);
       setActiveTab('library');
@@ -227,8 +262,21 @@ export const DashboardContainer = () => {
       setPendingStoryworldDetails(null);
       
       console.log('✅ Storyworld created and navigation complete');
+      
+      // Show success message
+      console.log('🎉 Success! Your storyworld has been created.');
+      
     } catch (error) {
-      console.error('Failed to create confirmed storyworld:', error);
+      console.error('❌ Failed to create confirmed storyworld:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        details,
+        user: user?.uid
+      });
+      
+      // Show error message to user
+      alert(`Failed to create storyworld: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

@@ -110,11 +110,15 @@ export const useFirebaseFunctions = () => {
   const createStoryworld = useCallback(async (data: {
     name: string;
     description: string;
+    genre?: string;
+    themes?: string[];
     coverImageUrl?: string;
     aiContext?: {
       originalPrompt: string;
       aiResponse: any;
       confidence: number;
+      analysis?: any;
+      generatedContent?: any;
     };
   }): Promise<{ storyworldId: string }> => {
     const fn = httpsCallable(validateFunctions(), 'createStoryworld');

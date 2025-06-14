@@ -4,9 +4,10 @@ import { PrivyClient } from "@privy-io/server-auth";
 import cors from "cors";
 import sgMail from "@sendgrid/mail";
 // Import Genkit and Google AI plugin libraries
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { configureGenkit } from '@genkit-ai/core';
 import { generate } from '@genkit-ai/ai';
+import { configureGenkit } from '@genkit-ai/core';
+import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+
 import { 
   UploadRequest, 
   UploadResponse, 
@@ -15,20 +16,50 @@ import {
   MediaProcessingResult,
   AssetType,
   AIPromptRequest,
-  AIPromptResponse,
   StoryworldEnhancementRequest,
   StoryworldEnhancementResponse
 } from "./types";
 
+// Import MongoDB functions and services
+import {
+  mongoHealthCheck,
+  createStoryworldMongo,
+  getUserStoryworldsMongo,
+  getPublicStoryworldsMongo,
+  createAssetMongo,
+  getStoryworldAssetsMongo,
+  getAssetByIdMongo,
+  updateAssetMongo,
+  deleteAssetMongo,
+  searchContentMongo
+} from "./mongoFunctions";
+import { StoryworldService } from "./lib/storyworldService";
+import { AssetService } from "./lib/assetService";
+
+// Re-export MongoDB functions as primary functions (removing Mongo suffix)
+export const healthCheck = mongoHealthCheck;
+export const createStoryworld = createStoryworldMongo;
+export const getUserStoryworlds = getUserStoryworldsMongo;
+export const getPublicStoryworlds = getPublicStoryworldsMongo;
+export const createAsset = createAssetMongo;
+export const saveAsset = createAssetMongo; // Alias for backward compatibility
+export const getAssetById = getAssetByIdMongo;
+export const getStoryworldAssets = getStoryworldAssetsMongo;
+export const updateAsset = updateAssetMongo;
+export const deleteAsset = deleteAssetMongo;
+export const searchContent = searchContentMongo;
+
+
+
 // Initialize Firebase Admin
 admin.initializeApp();
 
-// Configure Genkit
+// Configure Genkit with enhanced settings
 configureGenkit({
   plugins: [googleAI({
     apiKey: functions.config().google?.ai_api_key,
   })],
-  enableTracingAndMetrics: false,
+  enableTracingAndMetrics: true, // Enable for better debugging
 });
 
 // Initialize CORS
@@ -815,428 +846,7 @@ export const provisionAllWallets = functions.https.onCall(
 // Storyworld & Asset Management
 // ----------------------
 
-export const createStoryworld = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'Authentication required'
-      );
-    }
-
-    const name = (data.name as string)?.trim();
-    const description = (data.description as string)?.trim() || '';
-    const coverImageUrl = (data.coverImageUrl as string) || null;
-    const aiContext = data.aiContext || null;
-
-    if (!name) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'Name is required'
-      );
-    }
-
-    const db = admin.firestore();
-    try {
-      const storyworldData: any = {
-        ownerId: context.auth.uid,
-        name,
-        description,
-        coverImageUrl,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      // Add AI context if provided
-      if (aiContext) {
-        storyworldData.aiGenerated = {
-          originalPrompt: aiContext.originalPrompt,
-          confidence: aiContext.confidence,
-          generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          aiAnalysis: {
-            intent: aiContext.aiResponse?.analysis?.intent,
-            extractedEntities: aiContext.aiResponse?.analysis?.extractedEntities,
-          },
-          // Store sanitized AI response (remove sensitive data)
-          suggestions: aiContext.aiResponse?.suggestions ? {
-            type: aiContext.aiResponse.suggestions.type,
-            title: aiContext.aiResponse.suggestions.title,
-            description: aiContext.aiResponse.suggestions.description,
-          } : null,
-        };
-      }
-
-      const doc = await db.collection('storyworlds').add(storyworldData);
-
-      return { storyworldId: doc.id };
-    } catch (error) {
-      functions.logger.error('Error creating storyworld', error);
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to create storyworld'
-      );
-    }
-  }
-);
-
-export const getUserStoryworlds = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'Authentication required'
-      );
-    }
-
-    const uid = context.auth.uid;
-    const db = admin.firestore();
-
-    try {
-      const snapshot = await db
-        .collection('storyworlds')
-        .where('ownerId', '==', uid)
-        .orderBy('updatedAt', 'desc')
-        .get();
-
-      const storyworlds = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      return { storyworlds };
-    } catch (error) {
-      functions.logger.error('Error fetching user storyworlds', error);
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to fetch storyworlds'
-      );
-    }
-  }
-);
-
-export const deleteStoryworld = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'Authentication required'
-      );
-    }
-
-    const storyworldId = data.storyworldId as string;
-    if (!storyworldId) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'storyworldId is required'
-      );
-    }
-
-    const uid = context.auth.uid;
-    const db = admin.firestore();
-
-    try {
-      const storyworldRef = db.collection('storyworlds').doc(storyworldId);
-      const storyworldSnap = await storyworldRef.get();
-
-      if (!storyworldSnap.exists || storyworldSnap.data()?.ownerId !== uid) {
-        throw new functions.https.HttpsError(
-          'permission-denied',
-          'Invalid storyworld or insufficient permissions'
-        );
-      }
-
-      // Delete all assets in this storyworld
-      const assetsSnapshot = await db
-        .collection('assets')
-        .where('storyworldId', '==', storyworldId)
-        .get();
-
-      const batch = db.batch();
-      assetsSnapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      // Delete the storyworld itself
-      batch.delete(storyworldRef);
-
-      await batch.commit();
-
-      return { success: true };
-    } catch (error) {
-      functions.logger.error('Error deleting storyworld', error);
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to delete storyworld'
-      );
-    }
-  }
-);
-
-export const saveAsset = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'Authentication required'
-      );
-    }
-
-    const uid = context.auth.uid;
-    const assetId = data.assetId as string | undefined;
-    const storyworldId = data.storyworldId as string;
-    const name = (data.name as string)?.trim();
-    const type = data.type as string;
-    const content = data.content as any;
-
-    if (!storyworldId || !name || !type || !content) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'storyworldId, name, type and content are required'
-      );
-    }
-
-    const db = admin.firestore();
-
-    try {
-      // Validate storyworld ownership when creating new asset
-      if (!assetId) {
-        const swDoc = await db
-          .collection('storyworlds')
-          .doc(storyworldId)
-          .get();
-        if (!swDoc.exists || swDoc.data()?.ownerId !== uid) {
-          throw new functions.https.HttpsError(
-            'permission-denied',
-            'Invalid storyworld or insufficient permissions'
-          );
-        }
-
-        const doc = await db.collection('assets').add({
-          ownerId: uid,
-          storyworldId,
-          name,
-          type,
-          content,
-          status: 'DRAFT',
-          ipStatus: 'UNREGISTERED',
-          onChainId: null,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        return { assetId: doc.id };
-      } else {
-        const assetRef = db.collection('assets').doc(assetId);
-        const assetSnap = await assetRef.get();
-        if (!assetSnap.exists || assetSnap.data()?.ownerId !== uid) {
-          throw new functions.https.HttpsError(
-            'permission-denied',
-            'Invalid asset or insufficient permissions'
-          );
-        }
-
-        await assetRef.update({
-          name,
-          content,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        return { assetId };
-      }
-    } catch (error) {
-      functions.logger.error('Error saving asset', error);
-      throw new functions.https.HttpsError('internal', 'Failed to save asset');
-    }
-  }
-);
-
-export const getAssetById = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'Authentication required'
-      );
-    }
-
-    const assetId = data.assetId as string;
-    if (!assetId) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'assetId is required'
-      );
-    }
-
-    const uid = context.auth.uid;
-    const db = admin.firestore();
-
-    try {
-      const assetDoc = await db.collection('assets').doc(assetId).get();
-
-      if (!assetDoc.exists || assetDoc.data()?.ownerId !== uid) {
-        throw new functions.https.HttpsError(
-          'permission-denied',
-          'Asset not found or insufficient permissions'
-        );
-      }
-
-      return {
-        asset: {
-          id: assetDoc.id,
-          ...assetDoc.data(),
-        },
-      };
-    } catch (error) {
-      functions.logger.error('Error fetching asset', error);
-      throw new functions.https.HttpsError('internal', 'Failed to fetch asset');
-    }
-  }
-);
-
-export const getStoryworldAssets = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'Authentication required'
-      );
-    }
-
-    const storyworldId = data.storyworldId as string;
-    const filterByType = data.filterByType as string | undefined;
-    const filterByIpStatus = data.filterByIpStatus as string | undefined;
-    const sortBy = (data.sortBy as string) || 'createdAt';
-
-    if (!storyworldId) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'storyworldId is required'
-      );
-    }
-
-    const db = admin.firestore();
-    try {
-      // First, verify user has access to this storyworld
-      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
-      if (!storyworldDoc.exists) {
-        throw new functions.https.HttpsError(
-          'not-found',
-          'Storyworld not found'
-        );
-      }
-
-      // Verify user owns this storyworld
-      const storyworldData = storyworldDoc.data()!;
-      if (storyworldData.ownerId !== context.auth.uid) {
-        throw new functions.https.HttpsError(
-          'permission-denied',
-          'Access denied: You are not the owner of this storyworld'
-        );
-      }
-
-      // Get asset relationships for this storyworld
-      const relationshipsQuery = db
-        .collection('asset-storyworld-relations')
-        .where('storyworldId', '==', storyworldId);
-
-      const relationshipsSnapshot = await relationshipsQuery.get();
-      
-      if (relationshipsSnapshot.empty) {
-        return { assets: [] };
-      }
-
-      // Get asset IDs from relationships
-      const assetIds = relationshipsSnapshot.docs.map(doc => doc.data().assetId);
-
-      // Fetch assets in batches (Firestore 'in' query limit is 10)
-      const assets: any[] = [];
-      const batchSize = 10;
-      
-      for (let i = 0; i < assetIds.length; i += batchSize) {
-        const batch = assetIds.slice(i, i + batchSize);
-        
-        let assetsQuery: FirebaseFirestore.Query = db
-          .collection('assets')
-          .where(admin.firestore.FieldPath.documentId(), 'in', batch)
-          .where('uploadedBy', '==', context.auth.uid); // Ensure only user's assets are returned
-
-        // Apply filters
-        if (filterByType) {
-          assetsQuery = assetsQuery.where('type', '==', filterByType);
-        }
-
-        if (filterByIpStatus) {
-          assetsQuery = assetsQuery.where('ipStatus', '==', filterByIpStatus);
-        }
-
-        const assetsSnapshot = await assetsQuery.get();
-        const batchAssets = assetsSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          const { content: _content, ...rest } = data;
-          return { id: doc.id, ...rest };
-        });
-
-        assets.push(...batchAssets);
-      }
-
-      // Sort assets
-      assets.sort((a, b) => {
-        const aValue = a[sortBy];
-        const bValue = b[sortBy];
-        
-        if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
-          return bValue?.toMillis() - aValue?.toMillis(); // Descending for dates
-        }
-        
-        return bValue > aValue ? 1 : -1; // Descending for strings
-      });
-
-      return { assets };
-    } catch (error) {
-      functions.logger.error('Error fetching assets', error);
-      throw new functions.https.HttpsError('internal', 'Failed to fetch assets');
-    }
-  }
-);
-
-export const deleteAsset = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'Authentication required'
-      );
-    }
-
-    const assetId = data.assetId as string;
-    if (!assetId) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'assetId is required'
-      );
-    }
-
-    const uid = context.auth.uid;
-    const db = admin.firestore();
-
-    try {
-      const assetRef = db.collection('assets').doc(assetId);
-      const assetSnap = await assetRef.get();
-
-      if (!assetSnap.exists || assetSnap.data()?.uploadedBy !== uid) {
-        throw new functions.https.HttpsError(
-          'permission-denied',
-          'Asset not found or insufficient permissions'
-        );
-      }
-
-      await assetRef.delete();
-
-      return { success: true };
-    } catch (error) {
-      functions.logger.error('Error deleting asset', error);
-      throw new functions.https.HttpsError('internal', 'Failed to delete asset');
-    }
-  }
-);
+// Old Firestore functions removed - using MongoDB equivalents
 
 export const confirmAssetRegistration = functions.https.onCall(
   async (data, context) => {
@@ -1258,22 +868,43 @@ export const confirmAssetRegistration = functions.https.onCall(
     }
 
     const uid = context.auth.uid;
-    const db = admin.firestore();
 
     try {
-      const assetRef = db.collection('assets').doc(assetId);
-      const assetSnap = await assetRef.get();
-      if (!assetSnap.exists || assetSnap.data()?.uploadedBy !== uid) {
+      // Get asset from MongoDB
+      const asset = await AssetService.getById(assetId);
+      if (!asset || asset.ownerId !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid asset or insufficient permissions'
         );
       }
 
-      await assetRef.update({
+      // Update asset with registration info
+      await AssetService.update(assetId, {
         ipStatus: 'REGISTERED',
+        storyProtocol: {
+          ipId: onChainId,
+          txHash: onChainId, // Assuming onChainId is the transaction hash
+          registeredAt: new Date(),
+          metadataIpfsHash: asset.storyProtocol?.metadataIpfsHash || '',
+          licenseTerms: asset.storyProtocol?.licenseTerms || {
+            allowDerivatives: true,
+            commercialUse: false,
+            royaltyPercentage: 0,
+            territory: 'GLOBAL',
+            attribution: true
+          },
+          derivativeIds: asset.storyProtocol?.derivativeIds || [],
+          totalRevenue: asset.storyProtocol?.totalRevenue || 0,
+          totalRoyaltiesPaid: asset.storyProtocol?.totalRoyaltiesPaid || 0,
+          totalRoyaltiesEarned: asset.storyProtocol?.totalRoyaltiesEarned || 0
+        }
+      });
+
+      functions.logger.info('Asset registration confirmed via MongoDB', {
+        assetId,
         onChainId,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ownerId: uid
       });
 
       return { success: true };
@@ -1335,47 +966,37 @@ export const getSecureUploadUrl = functions.https.onCall(
       );
     }
 
-    const db = admin.firestore();
     const bucket = admin.storage().bucket();
 
     try {
-      // Verify storyworld ownership
-      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
-      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+      // Verify storyworld ownership using MongoDB
+      const storyworld = await StoryworldService.getById(storyworldId);
+      if (!storyworld || storyworld.ownerId !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid storyworld or insufficient permissions'
         );
       }
 
-      // Create asset document with flexible sharing model
-      const assetRef = await db.collection('assets').add({
-        uploadedBy: uid,
+      // Create asset document in MongoDB
+      const asset = await AssetService.create({
+        ownerId: uid,
+        storyworldIds: [storyworldId],
         name: fileName.split('.')[0], // Remove extension for default name
         type: assetType,
         status: 'DRAFT',
         ipStatus: 'UNREGISTERED',
-        onChainId: null,
-        mimeType: contentType,
-        fileSize,
-        visibility: 'STORYWORLD', // Default to storyworld-level sharing
-        allowRemixing: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // Create asset-storyworld relationship
-      await db.collection('asset-storyworld-relations').add({
-        assetId: assetRef.id,
-        storyworldId,
-        addedBy: uid,
-        role: 'OWNER',
-        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+        media: {
+          url: '', // Will be updated after upload
+          mimeType: contentType,
+          size: fileSize
+        },
+        description: `Uploaded ${assetType.toLowerCase()}: ${fileName}`
       });
 
       // Generate unique file path
       const fileExtension = fileName.split('.').pop();
-      const filePath = `assets/${assetRef.id}/original.${fileExtension}`;
+      const filePath = `assets/${asset._id}/original.${fileExtension}`;
       const file = bucket.file(filePath);
 
       // Generate signed URL for direct upload (expires in 15 minutes)
@@ -1386,16 +1007,16 @@ export const getSecureUploadUrl = functions.https.onCall(
         contentType,
       });
 
-      // Store upload metadata in asset
-      await assetRef.update({
-        filePath,
-        uploadUrl,
-        uploadExpiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 15 * 60 * 1000)),
+      functions.logger.info('Generated secure upload URL via MongoDB', {
+        assetId: asset._id,
+        storyworldId,
+        fileName,
+        ownerId: uid
       });
 
       const response: UploadResponse = {
         uploadUrl,
-        assetId: assetRef.id,
+        assetId: asset._id,
         filePath,
       };
 
@@ -1430,28 +1051,20 @@ export const processUploadedMedia = functions.https.onCall(
       );
     }
 
-    const db = admin.firestore();
     const bucket = admin.storage().bucket();
 
     try {
-      // Get asset document
-      const assetDoc = await db.collection('assets').doc(assetId).get();
-      if (!assetDoc.exists || assetDoc.data()?.uploadedBy !== uid) {
+      // Get asset document from MongoDB
+      const asset = await AssetService.getById(assetId);
+      if (!asset || asset.ownerId !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Asset not found or insufficient permissions'
         );
       }
 
-      const assetData = assetDoc.data()!;
-      const filePath = assetData.filePath;
-
-      if (!filePath) {
-        throw new functions.https.HttpsError(
-          'invalid-argument',
-          'No file path found for asset'
-        );
-      }
+      // Construct file path based on asset ID
+      const filePath = `assets/${assetId}/original.${asset.media?.mimeType?.split('/')[1] || 'bin'}`;
 
       // Check if file exists in storage
       const file = bucket.file(filePath);
@@ -1464,25 +1077,25 @@ export const processUploadedMedia = functions.https.onCall(
         );
       }
 
-      // Generate public download URL
-      await file.makePublic();
-      const mediaUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      // Generate public download URL using Firebase Storage download URL format
+      const mediaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
 
       // Update asset with media URL and processing status
       const updateData: any = {
-        mediaUrl,
         status: 'PUBLISHED',
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        media: {
+          ...asset.media,
+          url: mediaUrl
+        }
       };
 
       // For images, could generate thumbnail here
-      if (assetData.type === 'IMAGE') {
+      if (asset.type === 'IMAGE') {
         // TODO: Add thumbnail generation
         updateData.thumbnailUrl = mediaUrl; // Use original for now
       }
 
-      await assetDoc.ref.update(updateData);
+      await AssetService.update(assetId, updateData);
 
       const result: MediaProcessingResult = {
         success: true,
@@ -1490,12 +1103,12 @@ export const processUploadedMedia = functions.https.onCall(
         mediaUrl,
         thumbnailUrl: updateData.thumbnailUrl,
         metadata: {
-          fileSize: assetData.fileSize,
-          mimeType: assetData.mimeType,
+          fileSize: asset.media?.size || 0,
+          mimeType: asset.media?.mimeType || '',
         },
       };
 
-      functions.logger.info('Media processing completed', { assetId, uid });
+      functions.logger.info('Media processing completed via MongoDB', { assetId, uid });
       return result;
     } catch (error) {
       functions.logger.error('Error processing media', { assetId, uid, error });
@@ -1527,50 +1140,40 @@ export const createTextAsset = functions.https.onCall(
       );
     }
 
-    const db = admin.firestore();
-
     try {
-      // Verify storyworld ownership
-      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
-      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+      // Verify storyworld ownership using MongoDB
+      const storyworld = await StoryworldService.getById(storyworldId);
+      if (!storyworld || storyworld.ownerId !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid storyworld or insufficient permissions'
         );
       }
 
-      // Create asset with flexible sharing model
-      const assetRef = await db.collection('assets').add({
-        uploadedBy: uid,
+      // Create asset in MongoDB
+      const asset = await AssetService.create({
+        ownerId: uid,
+        storyworldIds: [storyworldId],
         name: name.trim(),
         type,
         content,
         description: description?.trim() || '',
         tags: tags || [],
         status: 'DRAFT',
-        ipStatus: 'UNREGISTERED',
-        onChainId: null,
-        visibility: 'STORYWORLD', // Default to storyworld-level sharing
-        allowRemixing: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // Create asset-storyworld relationship
-      await db.collection('asset-storyworld-relations').add({
-        assetId: assetRef.id,
-        storyworldId,
-        addedBy: uid,
-        role: 'OWNER',
-        addedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ipStatus: 'UNREGISTERED'
       });
 
       const response: CreateAssetResponse = {
-        assetId: assetRef.id,
+        assetId: asset._id,
         success: true,
       };
 
-      functions.logger.info('Text asset created', { assetId: assetRef.id, uid, type });
+      functions.logger.info('Text asset created via MongoDB', { 
+        assetId: asset._id, 
+        uid, 
+        type,
+        storyworldId 
+      });
       return response;
     } catch (error) {
       functions.logger.error('Error creating text asset', { uid, error });
@@ -1657,47 +1260,46 @@ export const uploadMediaDirect = functions.https.onCall(
       );
     }
 
-    const db = admin.firestore();
     const bucket = admin.storage().bucket();
 
     try {
-      // Verify storyworld ownership
-      const storyworldDoc = await db.collection('storyworlds').doc(storyworldId).get();
-      if (!storyworldDoc.exists || storyworldDoc.data()?.ownerId !== uid) {
+      // Verify storyworld ownership using MongoDB
+      const storyworld = await StoryworldService.getById(storyworldId);
+      if (!storyworld || storyworld.ownerId !== uid) {
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid storyworld or insufficient permissions'
         );
       }
 
-      // Create asset document
-      const assetRef = await db.collection('assets').add({
-        uploadedBy: uid,
+      // Create asset document using MongoDB
+      const assetData = {
+        ownerId: uid,
         name: fileName.split('.')[0],
         type: assetType,
-        status: 'DRAFT',
-        ipStatus: 'UNREGISTERED',
-        onChainId: null,
-        mimeType: contentType,
-        fileSize: actualFileSize,
-        visibility: 'STORYWORLD',
-        allowRemixing: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // Create asset-storyworld relationship
-      await db.collection('asset-storyworld-relations').add({
-        assetId: assetRef.id,
-        storyworldId,
-        addedBy: uid,
-        role: 'OWNER',
-        addedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+        status: 'DRAFT' as const,
+        ipStatus: 'UNREGISTERED' as const,
+        storyworldIds: [storyworldId],
+        description: `Uploaded ${assetType.toLowerCase()} asset: ${fileName}`,
+        tags: [assetType.toLowerCase(), 'uploaded'],
+        content: {
+          originalFileName: fileName,
+          uploadedAt: new Date().toISOString(),
+          fileExtension: fileName.split('.').pop()?.toLowerCase()
+        },
+        media: {
+          url: '', // Will be updated after upload
+          mimeType: contentType,
+          size: actualFileSize
+        }
+      };
+      
+      const createdAsset = await AssetService.create(assetData);
+      const assetId = createdAsset._id;
 
       // Upload file directly from server
       const fileExtension = fileName.split('.').pop();
-      const filePath = `assets/${assetRef.id}/original.${fileExtension}`;
+      const filePath = `assets/${assetId}/original.${fileExtension}`;
       const file = bucket.file(filePath);
 
       // Convert base64 to buffer
@@ -1707,27 +1309,36 @@ export const uploadMediaDirect = functions.https.onCall(
       await file.save(fileBuffer, {
         metadata: {
           contentType,
+          // Add custom metadata to make file accessible
+          cacheControl: 'public, max-age=31536000',
         },
       });
 
-      // Make file public
-      await file.makePublic();
-      const mediaUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      // Use Firebase Storage download URL (works with authentication)
+      const mediaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
 
-      // Update asset with media URL
-      await assetRef.update({
-        filePath,
-        mediaUrl,
+      // Update asset with media URL using MongoDB
+      await AssetService.update(assetId, {
+        media: {
+          url: mediaUrl,
+          mimeType: contentType,
+          size: actualFileSize
+        },
         status: 'PUBLISHED',
-        processedAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        content: {
+          originalFileName: fileName,
+          uploadedAt: new Date().toISOString(),
+          fileExtension: fileName.split('.').pop()?.toLowerCase(),
+          storagePath: filePath,
+          uploadMethod: 'direct'
+        }
       });
 
-      functions.logger.info('Direct upload completed', { assetId: assetRef.id, uid });
+      functions.logger.info('Direct upload completed', { assetId, uid });
       
       return {
         success: true,
-        assetId: assetRef.id,
+        assetId,
         mediaUrl,
       };
     } catch (error) {
@@ -1810,7 +1421,7 @@ function generateStoryworldFromPrompt(prompt: string, entities: any) {
   };
 }
 
-// AI Assistant Functions
+// AI Assistant Functions - Enhanced with better prompting and error handling
 export const processCreativePrompt = functions.https.onCall(
   async (data: AIPromptRequest, context) => {
     if (!context.auth) {
@@ -1831,48 +1442,67 @@ export const processCreativePrompt = functions.https.onCall(
     }
 
     try {
-      const db = admin.firestore();
-      
-      // Get user's existing storyworlds for context
-      const userStoryworlds = await db
-        .collection('storyworlds')
-        .where('ownerId', '==', uid)
-        .limit(10)
-        .get();
-      userStoryworlds.docs.map(doc => doc.data().name);
-// Enhanced prompt for AI analysis
+      // Enhanced prompt for AI analysis with better structure
       const analysisPrompt = `
-Analyze this creative prompt: "${prompt}"
+You are an AI assistant for a creative storytelling platform. Analyze this user prompt and respond with ONLY a JSON object.
 
-YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO EXPLANATIONS.
+User prompt: "${prompt}"
 
-START YOUR RESPONSE WITH { AND END WITH }
+Analyze the intent and extract relevant information. Respond with this exact JSON structure:
 
-Format exactly like this:
-{"intent": "CREATE_STORYWORLD", "confidence": 0.95, "extractedEntities": {"storyworldName": "Cyber-Valhalla", "genre": "cyberpunk fantasy", "themes": ["technology", "mythology"], "concepts": ["hackers", "gods"]}}
+{
+  "intent": "CREATE_STORYWORLD" | "CREATE_ASSET" | "ENHANCE_EXISTING" | "GENERAL_HELP",
+  "confidence": number between 0 and 1,
+  "extractedEntities": {
+    "storyworldName": "string or null",
+    "genre": "string or null", 
+    "themes": ["array", "of", "strings"],
+    "assetType": "CHARACTER" | "STORYLINE" | "LORE" | "IMAGE" | null,
+    "concepts": ["key", "concepts", "from", "prompt"]
+  }
+}
+
+Rules:
+- Use CREATE_STORYWORLD for world-building, universe creation, or setting establishment
+- Use CREATE_ASSET for specific character, story, or lore creation
+- Set confidence high (0.8+) only if intent is very clear
+- Extract genre from context (fantasy, sci-fi, cyberpunk, etc.)
+- Include relevant themes and concepts
+
+Respond with ONLY the JSON object, no other text.
       `;
 
-      // Use AI to analyze the prompt
-      const aiResponse = await generate({
-        model: gemini15Flash,
-        prompt: analysisPrompt,
-      });
-
-      // Parse AI response
+      // Use AI to analyze the prompt with better error handling
       let analysis;
       try {
-        let aiText = aiResponse.text();
-        console.log('Raw AI response:', aiText);
+        const aiResponse = await generate({
+          model: gemini15Flash,
+          prompt: analysisPrompt,
+          config: {
+            temperature: 0.3, // Lower temperature for more consistent JSON
+            maxOutputTokens: 500,
+          }
+        });
+
+        let aiText = aiResponse.text().trim();
+        functions.logger.info('AI Analysis Response:', { rawResponse: aiText });
         
-        // Clean up markdown formatting if present
-        aiText = aiText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        // More robust JSON extraction
+        const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          aiText = jsonMatch[0];
+        }
         
         analysis = JSON.parse(aiText);
-        console.log('Parsed AI analysis:', analysis);
+        functions.logger.info('Parsed AI Analysis:', analysis);
+        
+        // Validate the analysis structure
+        if (!analysis.intent || !analysis.confidence || !analysis.extractedEntities) {
+          throw new Error('Invalid analysis structure');
+        }
+        
       } catch (parseError) {
-        // Fallback if JSON parsing fails - use keyword analysis
-        console.log('AI parsing failed:', parseError);
-        console.log('AI response text:', aiResponse.text());
+        functions.logger.warn('AI analysis failed, using fallback:', parseError);
         analysis = analyzePromptKeywords(prompt);
       }
 
@@ -1882,35 +1512,64 @@ Format exactly like this:
 
       if (analysis.intent === 'CREATE_STORYWORLD') {
         const storyworldPrompt = `
-Create a storyworld based on: "${prompt}"
+You are a creative world-building AI. Create a compelling storyworld based on this user prompt.
 
-YOU MUST RESPOND WITH ONLY A VALID JSON OBJECT. NO MARKDOWN. NO BACKTICKS. NO EXPLANATIONS.
+User prompt: "${prompt}"
 
-START YOUR RESPONSE WITH { AND END WITH }
+Context from analysis:
+- Genre: ${analysis.extractedEntities.genre || 'fantasy'}
+- Themes: ${analysis.extractedEntities.themes?.join(', ') || 'adventure, discovery'}
+- Key concepts: ${analysis.extractedEntities.concepts?.join(', ') || 'creativity, storytelling'}
 
-Format exactly like this:
-{"name": "Cyber-Norse Realms", "description": "A futuristic world where ancient Norse gods control digital networks and quantum realms. Hackers must navigate both code and mythology to prevent Ragnarok 2.0.", "genre": "cyberpunk fantasy", "themes": ["technology", "mythology", "rebellion", "destiny"]}
+Create a storyworld that captures the essence of the user's vision. Respond with this exact JSON structure:
+
+{
+  "name": "Compelling World Name",
+  "description": "Rich, detailed description that brings the world to life (2-3 sentences)",
+  "genre": "primary genre",
+  "themes": ["theme1", "theme2", "theme3", "theme4"]
+}
+
+Guidelines:
+- Name should be evocative and memorable
+- Description should paint a vivid picture and hook the reader
+- Include 3-4 relevant themes that match the prompt
+- Make it feel unique and inspiring
+
+Respond with ONLY the JSON object.
         `;
 
-        // Use AI to generate storyworld concept
-        const storyworldResponse = await generate({
-          model: gemini15Flash,
-          prompt: storyworldPrompt,
-        });
-
         try {
-          let storyworldText = storyworldResponse.text();
-          console.log('Raw storyworld response:', storyworldText);
+          const storyworldResponse = await generate({
+            model: gemini15Flash,
+            prompt: storyworldPrompt,
+            config: {
+              temperature: 0.7, // Higher creativity for world generation
+              maxOutputTokens: 400,
+            }
+          });
+
+          let storyworldText = storyworldResponse.text().trim();
+          functions.logger.info('AI Storyworld Response:', { rawResponse: storyworldText });
           
-          // Clean up markdown formatting if present
-          storyworldText = storyworldText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+          // Extract JSON from response
+          const jsonMatch = storyworldText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            storyworldText = jsonMatch[0];
+          }
           
-          generatedContent = { storyworld: JSON.parse(storyworldText) };
-          console.log('Generated storyworld:', generatedContent.storyworld);
+          const storyworld = JSON.parse(storyworldText);
+          
+          // Validate storyworld structure
+          if (!storyworld.name || !storyworld.description || !storyworld.genre) {
+            throw new Error('Invalid storyworld structure');
+          }
+          
+          generatedContent = { storyworld };
+          functions.logger.info('Generated Storyworld:', storyworld);
+          
         } catch (parseError) {
-          // Fallback to generated content if AI parsing fails
-          console.log('Storyworld AI parsing failed:', parseError);
-          console.log('Storyworld response text:', storyworldResponse.text());
+          functions.logger.warn('Storyworld generation failed, using fallback:', parseError);
           generatedContent = {
             storyworld: generateStoryworldFromPrompt(prompt, analysis.extractedEntities)
           };
@@ -1982,7 +1641,7 @@ Format exactly like this:
         };
       }
 
-      const response: AIPromptResponse = {
+      const response = {
         success: true,
         analysis: {
           intent: analysis.intent || 'GENERAL_HELP',
@@ -1995,7 +1654,7 @@ Format exactly like this:
 
       // Log for analytics
       functions.logger.info('Creative prompt processed', {
-        uid,
+        userId,
         intent: analysis.intent,
         confidence: analysis.confidence,
         hasGeneratedContent: !!generatedContent
@@ -2003,11 +1662,29 @@ Format exactly like this:
 
       return response;
     } catch (error) {
-      functions.logger.error('Error processing creative prompt', { uid, error });
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to process prompt'
-      );
+      functions.logger.error('Error processing creative prompt', { 
+        userId, 
+        prompt: prompt.substring(0, 100), // Log first 100 chars for debugging
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      // Return a graceful fallback response instead of throwing
+      const fallbackResponse = {
+        success: false,
+        analysis: {
+          intent: 'GENERAL_HELP' as const,
+          confidence: 0.5,
+          extractedEntities: {}
+        },
+        suggestions: {
+          type: 'general_advice' as const,
+          title: 'Creative Assistance',
+          description: 'I can help you create storyworlds, characters, and storylines. Try being more specific about what you\'d like to create.',
+        }
+      };
+      
+      return fallbackResponse;
     }
   }
 );
@@ -2135,4 +1812,7 @@ export const enhanceStoryworld = functions.https.onCall(
       );
     }
   }
-); 
+);
+
+// MongoDB Functions Import
+export * from "./mongoFunctions"; 
