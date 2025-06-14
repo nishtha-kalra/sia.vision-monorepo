@@ -15,8 +15,9 @@ export class StoryworldService {
     const collection = db.collection<MongoStoryworld>(COLLECTION_NAME);
     
     const now = new Date();
+    const objectId = new ObjectId();
     const newStoryworld: MongoStoryworld = {
-      _id: new ObjectId().toHexString(),
+      _id: objectId.toHexString(), // Keep as string for interface compatibility
       ...storyworld,
       stats: storyworld.stats || {
         totalAssets: 0,
@@ -29,7 +30,11 @@ export class StoryworldService {
     };
     
     try {
-      await collection.insertOne(newStoryworld);
+      // Insert with ObjectId for MongoDB (bypassing TypeScript)
+      await collection.insertOne({
+        ...newStoryworld,
+        _id: objectId
+      } as any);
       functions.logger.info(`📝 Created storyworld: ${newStoryworld._id}`);
       return newStoryworld;
     } catch (error) {
@@ -46,8 +51,16 @@ export class StoryworldService {
     const collection = db.collection<MongoStoryworld>(COLLECTION_NAME);
     
     try {
-      const storyworld = await collection.findOne({ _id: id });
-      return storyworld;
+      const storyworld = await collection.findOne({ _id: new ObjectId(id) } as any);
+      
+      // Convert ObjectId back to string for interface compatibility
+      if (storyworld) {
+        return {
+          ...storyworld,
+          _id: storyworld._id.toString()
+        } as MongoStoryworld;
+      }
+      return null;
     } catch (error) {
       functions.logger.error("❌ Failed to get storyworld:", error);
       return null;
@@ -66,7 +79,12 @@ export class StoryworldService {
         .find({ ownerId })
         .sort({ updatedAt: -1 })
         .toArray();
-      return storyworlds;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return storyworlds.map(storyworld => ({
+        ...storyworld,
+        _id: storyworld._id.toString()
+      })) as MongoStoryworld[];
     } catch (error) {
       functions.logger.error("❌ Failed to get user storyworlds:", error);
       throw new Error("Failed to get storyworlds");
@@ -87,7 +105,12 @@ export class StoryworldService {
         .skip(skip)
         .limit(limit)
         .toArray();
-      return storyworlds;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return storyworlds.map(storyworld => ({
+        ...storyworld,
+        _id: storyworld._id.toString()
+      })) as MongoStoryworld[];
     } catch (error) {
       functions.logger.error("❌ Failed to get public storyworlds:", error);
       throw new Error("Failed to get public storyworlds");
@@ -106,7 +129,7 @@ export class StoryworldService {
     
     try {
       const result = await collection.findOneAndUpdate(
-        { _id: id },
+        { _id: new ObjectId(id) } as any,
         { 
           $set: { 
             ...updates, 
@@ -118,9 +141,15 @@ export class StoryworldService {
       
       if (result) {
         functions.logger.info(`📝 Updated storyworld: ${id}`);
+        
+        // Convert ObjectId back to string for interface compatibility
+        return {
+          ...result,
+          _id: result._id.toString()
+        } as MongoStoryworld;
       }
       
-      return result;
+      return null;
     } catch (error) {
       functions.logger.error("❌ Failed to update storyworld:", error);
       throw new Error("Failed to update storyworld");
@@ -136,7 +165,7 @@ export class StoryworldService {
     
     try {
       await collection.updateOne(
-        { _id: id },
+        { _id: new ObjectId(id) } as any,
         { 
           $set: { 
             stats,
@@ -160,9 +189,9 @@ export class StoryworldService {
     
     try {
       const result = await collection.deleteOne({ 
-        _id: id, 
+        _id: new ObjectId(id), 
         ownerId 
-      });
+      } as any);
       
       if (result.deletedCount > 0) {
         functions.logger.info(`🗑️ Deleted storyworld: ${id}`);
@@ -204,8 +233,12 @@ export class StoryworldService {
         .find(searchFilter)
         .limit(limit)
         .toArray();
-        
-      return storyworlds;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return storyworlds.map(storyworld => ({
+        ...storyworld,
+        _id: storyworld._id.toString()
+      })) as MongoStoryworld[];
     } catch (error) {
       functions.logger.error("❌ Failed to search storyworlds:", error);
       throw new Error("Failed to search storyworlds");

@@ -16,8 +16,9 @@ export class AssetService {
     const collection = db.collection<MongoAsset>(COLLECTION_NAME);
     
     const now = new Date();
+    const objectId = new ObjectId();
     const newAsset: MongoAsset = {
-      _id: new ObjectId().toHexString(),
+      _id: objectId.toHexString(), // Keep as string for interface compatibility
       ...asset,
       status: asset.status || 'DRAFT',
       ipStatus: asset.ipStatus || 'UNREGISTERED',
@@ -28,7 +29,11 @@ export class AssetService {
     };
     
     try {
-      await collection.insertOne(newAsset);
+      // Insert with ObjectId for MongoDB (bypassing TypeScript)
+      await collection.insertOne({
+        ...newAsset,
+        _id: objectId
+      } as any);
       
       // Update storyworld stats
       await this.updateStoryworldStats(asset.storyworldIds);
@@ -50,10 +55,18 @@ export class AssetService {
     
     try {
       const asset = await collection.findOne({ 
-        _id: id, 
+        _id: new ObjectId(id), 
         ownerId 
-      });
-      return asset;
+      } as any);
+      
+      // Convert ObjectId back to string for interface compatibility
+      if (asset) {
+        return {
+          ...asset,
+          _id: asset._id.toString()
+        } as MongoAsset;
+      }
+      return null;
     } catch (error) {
       functions.logger.error("❌ Failed to get asset by ID:", error);
       return null;
@@ -68,8 +81,16 @@ export class AssetService {
     const collection = db.collection<MongoAsset>(COLLECTION_NAME);
     
     try {
-      const asset = await collection.findOne({ _id: id });
-      return asset;
+      const asset = await collection.findOne({ _id: new ObjectId(id) } as any);
+      
+      // Convert ObjectId back to string for interface compatibility
+      if (asset) {
+        return {
+          ...asset,
+          _id: asset._id.toString()
+        } as MongoAsset;
+      }
+      return null;
     } catch (error) {
       functions.logger.error("❌ Failed to get asset:", error);
       return null;
@@ -88,7 +109,12 @@ export class AssetService {
         .find({ storyworldIds: storyworldId })
         .sort({ updatedAt: -1 })
         .toArray();
-      return assets;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return assets.map(asset => ({
+        ...asset,
+        _id: asset._id.toString()
+      })) as MongoAsset[];
     } catch (error) {
       functions.logger.error("❌ Failed to get storyworld assets:", error);
       throw new Error("Failed to get assets");
@@ -107,7 +133,12 @@ export class AssetService {
         .find({ ownerId })
         .sort({ updatedAt: -1 })
         .toArray();
-      return assets;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return assets.map(asset => ({
+        ...asset,
+        _id: asset._id.toString()
+      })) as MongoAsset[];
     } catch (error) {
       functions.logger.error("❌ Failed to get user assets:", error);
       throw new Error("Failed to get assets");
@@ -132,7 +163,12 @@ export class AssetService {
         })
         .sort({ updatedAt: -1 })
         .toArray();
-      return assets;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return assets.map(asset => ({
+        ...asset,
+        _id: asset._id.toString()
+      })) as MongoAsset[];
     } catch (error) {
       functions.logger.error("❌ Failed to get assets by type:", error);
       throw new Error("Failed to get assets");
@@ -151,7 +187,7 @@ export class AssetService {
     
     try {
       const result = await collection.findOneAndUpdate(
-        { _id: id },
+        { _id: new ObjectId(id) } as any,
         { 
           $set: { 
             ...updates, 
@@ -168,9 +204,15 @@ export class AssetService {
         if (updates.storyworldIds) {
           await this.updateStoryworldStats(updates.storyworldIds);
         }
+        
+        // Convert ObjectId back to string for interface compatibility
+        return {
+          ...result,
+          _id: result._id.toString()
+        } as MongoAsset;
       }
       
-      return result;
+      return null;
     } catch (error) {
       functions.logger.error("❌ Failed to update asset:", error);
       throw new Error("Failed to update asset");
@@ -186,13 +228,13 @@ export class AssetService {
     
     try {
       // Get asset first to know which storyworlds to update
-      const asset = await collection.findOne({ _id: id, ownerId });
+      const asset = await collection.findOne({ _id: new ObjectId(id), ownerId } as any);
       if (!asset) return false;
       
       const result = await collection.deleteOne({ 
-        _id: id, 
+        _id: new ObjectId(id), 
         ownerId 
-      });
+      } as any);
       
       if (result.deletedCount > 0) {
         // Update storyworld stats
@@ -242,8 +284,12 @@ export class AssetService {
         .find(searchFilter)
         .limit(limit)
         .toArray();
-        
-      return assets;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return assets.map(asset => ({
+        ...asset,
+        _id: asset._id.toString()
+      })) as MongoAsset[];
     } catch (error) {
       functions.logger.error("❌ Failed to search assets:", error);
       throw new Error("Failed to search assets");
@@ -271,8 +317,12 @@ export class AssetService {
         .find(filter)
         .sort({ 'storyProtocol.registeredAt': -1 })
         .toArray();
-        
-      return assets;
+      
+      // Convert ObjectId back to string for interface compatibility
+      return assets.map(asset => ({
+        ...asset,
+        _id: asset._id.toString()
+      })) as MongoAsset[];
     } catch (error) {
       functions.logger.error("❌ Failed to get registered IPs:", error);
       throw new Error("Failed to get registered IPs");
@@ -311,7 +361,7 @@ export class AssetService {
     
     try {
       await collection.updateOne(
-        { _id: id },
+        { _id: new ObjectId(id) } as any,
         { 
           $inc: { views: 1 },
           $set: { updatedAt: new Date() }
@@ -332,7 +382,7 @@ export class AssetService {
     
     try {
       await collection.updateOne(
-        { _id: id },
+        { _id: new ObjectId(id) } as any,
         { 
           $inc: { likes: increment ? 1 : -1 },
           $set: { updatedAt: new Date() }
