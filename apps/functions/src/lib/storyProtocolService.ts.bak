@@ -1,0 +1,572 @@
+/**
+ * Story Protocol Service
+ * 
+ * IMPORTANT: Story Protocol Integration Status
+ * ==========================================
+ * 
+ * The actual Story Protocol client calls are currently COMMENTED OUT for the following reasons:
+ * 
+ * 1. **Development Phase**: We're in the development/testing phase where we want to:
+ *    - Test the UI/UX flow without blockchain transactions
+ *    - Validate metadata generation and storage
+ *    - Ensure proper error handling and user feedback
+ *    - Avoid gas costs during development
+ * 
+ * 2. **Network Requirements**: Story Protocol requires:
+ *    - Connection to Story Protocol testnet/mainnet
+ *    - Valid private keys with sufficient gas tokens ($IP)
+ *    - Proper RPC endpoints and contract addresses
+ * 
+ * 3. **Production Readiness**: When ready for production:
+ *    - Uncomment the Story Protocol client initialization
+ *    - Add proper environment variables for private keys
+ *    - Configure RPC endpoints for Story Protocol network
+ *    - Test on Story Protocol testnet first
+ * 
+ * Current Status: MOCK IMPLEMENTATION for development/testing
+ */
+
+import { createPublicClient, createWalletClient, http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { defineChain } from 'viem';
+// import { StoryClient, StoryConfig } from '@story-protocol/core-sdk'; // TODO: Uncomment when ready for production
+// import { http } from 'viem'; // TODO: Uncomment when ready for production
+import * as functions from 'firebase-functions';
+import { getStorage } from 'firebase-admin/storage';
+
+// Story Protocol Network Configuration
+const storyTestnet = defineChain({
+  id: 1513,
+  name: 'Story Protocol Testnet',
+  network: 'story-testnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'IP',
+    symbol: 'IP',
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://testnet.storyrpc.io'],
+    },
+    public: {
+      http: ['https://testnet.storyrpc.io'],
+    },
+  },
+  blockExplorers: {
+    default: { name: 'Story Explorer', url: 'https://testnet.storyscan.xyz' },
+  },
+});
+
+// Official Story Protocol PIL Templates
+// Based on: https://docs.story.foundation/concepts/programmable-ip-license/pil-flavors
+export const PIL_TEMPLATES = {
+  NON_COMMERCIAL_SOCIAL_REMIXING: {
+    id: 'non-commercial-social-remixing',
+    name: 'Non-Commercial Social Remixing',
+    description: 'Let the world build on and play with your creation. This license allows for endless free remixing while tracking all uses of your work while giving you full credit. Similar to: TikTok plus attribution.',
+    licenseTermsId: '1', // Pre-registered in Story Protocol
+    mintingFee: '0',
+    currency: 'ETH',
+    features: [
+      '✅ Remix this work (derivatives allowed)',
+      '✅ Distribute their remix anywhere',
+      '✅ Get the license for free (no minting fee)',
+      '❌ Commercialize the original and derivative works',
+      '❌ Claim credit for any derivative works (attribution required)',
+      '❌ Claim credit for the original work'
+    ],
+    terms: {
+      transferable: true,
+      commercialUse: false,
+      commercialAttribution: false,
+      commercialRevShare: 0,
+      derivativesAllowed: true,
+      derivativesAttribution: true,
+      derivativesApproval: false,
+      derivativesReciprocal: true,
+      defaultMintingFee: 0,
+      currency: 'ETH'
+    },
+    useCases: [
+      'Social media content',
+      'Educational materials',
+      'Fan art and remixes',
+      'Community-driven projects'
+    ]
+  },
+  
+  COMMERCIAL_USE: {
+    id: 'commercial-use',
+    name: 'Commercial Use',
+    description: 'Retain control over reuse of your work, while allowing anyone to appropriately use the work in exchange for the economic terms you set. This is similar to Shutterstock with creator-set rules.',
+    mintingFee: '1000000000000000000', // 1 ETH equivalent
+    currency: 'ETH',
+    features: [
+      '✅ Commercialize the original work',
+      '✅ Keep all revenue (no revenue sharing)',
+      '❌ Remix this work (derivatives not allowed)',
+      '❌ Get the license for free (minting fee required)',
+      '❌ Claim credit for the original work (attribution required)'
+    ],
+    terms: {
+      transferable: true,
+      commercialUse: true,
+      commercialAttribution: true,
+      commercialRevShare: 0,
+      derivativesAllowed: false,
+      derivativesAttribution: false,
+      derivativesApproval: false,
+      derivativesReciprocal: false,
+      defaultMintingFee: 1000000000000000000, // 1 ETH
+      currency: 'ETH'
+    },
+    useCases: [
+      'Stock photography',
+      'Commercial artwork',
+      'Brand assets',
+      'Marketing materials'
+    ]
+  },
+  
+  COMMERCIAL_REMIX: {
+    id: 'commercial-remix',
+    name: 'Commercial Remix',
+    description: 'Let the world build on and play with your creation… and earn money together from it! This license allows for endless free remixing while tracking all uses of your work while giving you full credit, with each derivative paying a percentage of revenue to its "parent" IP.',
+    mintingFee: '1000000000000000000', // 1 ETH equivalent
+    currency: 'ETH',
+    royaltyPercentage: 10, // 10% revenue share
+    features: [
+      '✅ Remix this work (derivatives allowed)',
+      '✅ Commercialize the original and derivative works',
+      '✅ Distribute their remix anywhere',
+      '❌ Get the license for free (minting fee required)',
+      '❌ Keep all revenue (revenue sharing required)',
+      '❌ Claim credit for the original work (attribution required)'
+    ],
+    terms: {
+      transferable: true,
+      commercialUse: true,
+      commercialAttribution: true,
+      commercialRevShare: 10, // 10%
+      derivativesAllowed: true,
+      derivativesAttribution: true,
+      derivativesApproval: false,
+      derivativesReciprocal: true,
+      defaultMintingFee: 1000000000000000000, // 1 ETH
+      currency: 'ETH'
+    },
+    useCases: [
+      'Music sampling and remixes',
+      'Character licensing',
+      'Franchise development',
+      'Collaborative content creation'
+    ]
+  },
+  
+  CREATIVE_COMMONS_ATTRIBUTION: {
+    id: 'creative-commons-attribution',
+    name: 'Creative Commons Attribution',
+    description: 'Let the world build on and play with your creation - including making money. Similar to CC-BY license with blockchain enforcement.',
+    mintingFee: '0',
+    currency: 'ETH',
+    features: [
+      '✅ Remix this work (derivatives allowed)',
+      '✅ Commercialize the original and derivative works',
+      '✅ Distribute their remix anywhere',
+      '✅ Get the license for free (no minting fee)',
+      '✅ Keep all revenue (no revenue sharing)',
+      '❌ Claim credit for the original work (attribution required)'
+    ],
+    terms: {
+      transferable: true,
+      commercialUse: true,
+      commercialAttribution: true,
+      commercialRevShare: 0,
+      derivativesAllowed: true,
+      derivativesAttribution: true,
+      derivativesApproval: false,
+      derivativesReciprocal: true,
+      defaultMintingFee: 0,
+      currency: 'ETH'
+    },
+    useCases: [
+      'Open source projects',
+      'Educational content',
+      'Research materials',
+      'Community resources'
+    ]
+  }
+};
+
+// IP Metadata interface based on Story Protocol standards
+export interface IPMetadata {
+  title: string;
+  description: string;
+  ipType: 'CHARACTER' | 'ART' | 'STORY' | 'MUSIC' | 'VIDEO' | 'GAME' | 'OTHER';
+  creators: Array<{
+    name: string;
+    address?: string;
+    role: string;
+    contributionPercentage?: number;
+  }>;
+  createdAt: string;
+  tags?: string[];
+  attributes?: Array<{
+    trait_type: string;
+    value: string | number;
+  }>;
+  externalUrl?: string;
+  animationUrl?: string;
+  
+  // Storyworld context
+  storyworldContext?: {
+    storyworldId: string;
+    storyworldName: string;
+    storyworldDescription: string;
+    genre?: string;
+    themes?: string[];
+    setting?: string;
+    characters?: string[];
+    plotElements?: string[];
+  };
+  
+  // AI generation context
+  aiGenerated?: {
+    model: string;
+    prompt: string;
+    confidence: number;
+    generatedAt: string;
+  };
+}
+
+export class StoryProtocolService {
+  // private client: StoryClient | null = null; // TODO: Uncomment when ready for production
+  private account: any = null;
+  private isTestnet: boolean;
+
+  constructor(isTestnet: boolean = true) {
+    this.isTestnet = isTestnet;
+  }
+
+  /**
+   * Initialize the Story Protocol service
+   * Currently mocked for development
+   */
+  async initialize(): Promise<void> {
+    try {
+      functions.logger.info('🔧 Initializing Story Protocol Service (MOCK MODE)');
+      
+      // TODO: Uncomment when ready for production Story Protocol integration
+      /*
+      const config = this.getNetworkConfig();
+      
+      // Create account from private key
+      const privateKey = process.env.STORY_PRIVATE_KEY;
+      if (!privateKey) {
+        throw new Error('STORY_PRIVATE_KEY environment variable not set');
+      }
+      
+      this.account = privateKeyToAccount(privateKey as `0x${string}`);
+      
+      // Initialize Story client
+      const storyConfig: StoryConfig = {
+        account: this.account,
+        transport: http(config.rpcUrl),
+        chainId: config.chainId,
+      };
+      
+      this.client = StoryClient.newClient(storyConfig);
+      */
+      
+      functions.logger.info('✅ Story Protocol Service initialized (MOCK MODE)');
+    } catch (error) {
+      functions.logger.error('❌ Failed to initialize Story Protocol Service:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get network configuration
+   */
+  private getNetworkConfig() {
+    if (this.isTestnet) {
+      return {
+        chainId: 1513,
+        rpcUrl: 'https://testnet.storyrpc.io',
+        name: 'Story Protocol Testnet'
+      };
+    } else {
+      return {
+        chainId: 1516, // Story Protocol Mainnet
+        rpcUrl: 'https://rpc.story.foundation',
+        name: 'Story Protocol Mainnet'
+      };
+    }
+  }
+
+  /**
+   * Store IP metadata in Firebase Storage
+   */
+  async storeMetadataInFirebase(metadata: IPMetadata, assetId: string): Promise<string> {
+    try {
+      const bucket = getStorage().bucket();
+      const fileName = `ip-metadata/${assetId}-${Date.now()}.json`;
+      const file = bucket.file(fileName);
+      
+      await file.save(JSON.stringify(metadata, null, 2), {
+        metadata: {
+          contentType: 'application/json',
+        },
+      });
+      
+      // Make the file publicly readable
+      await file.makePublic();
+      
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      functions.logger.info('📄 IP metadata stored in Firebase Storage:', { fileName, publicUrl });
+      
+      return publicUrl;
+    } catch (error) {
+      functions.logger.error('❌ Failed to store IP metadata:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate enhanced IP metadata using storyworld context and user information
+   */
+  async generateEnhancedMetadata(
+    assetName: string,
+    assetType: string,
+    userInfo: {
+      uid: string;
+      email?: string;
+      displayName?: string;
+      walletAddress?: string;
+    },
+    storyworldContext?: {
+      id: string;
+      name: string;
+      description: string;
+      genre?: string;
+      themes?: string[];
+    },
+    customAttributes?: Array<{ trait_type: string; value: string | number; }>
+  ): Promise<IPMetadata> {
+    try {
+      functions.logger.info('🤖 Generating enhanced IP metadata', { 
+        assetName, 
+        assetType, 
+        userInfo: { uid: userInfo.uid, displayName: userInfo.displayName },
+        storyworldContext: storyworldContext ? { id: storyworldContext.id, name: storyworldContext.name } : null
+      });
+
+      // Determine creator name from available user info
+      const creatorName = userInfo.displayName || 
+                         userInfo.email?.split('@')[0] || 
+                         `Creator-${userInfo.uid.slice(0, 8)}`;
+
+      // Base metadata structure
+      const metadata: IPMetadata = {
+        title: assetName,
+        description: `A ${assetType.toLowerCase()} asset created in the SIA platform`,
+        ipType: this.mapAssetTypeToIPType(assetType),
+        creators: [{
+          name: creatorName,
+          address: userInfo.walletAddress,
+          role: 'Original Creator',
+          contributionPercentage: 100
+        }],
+        createdAt: new Date().toISOString(),
+        tags: [assetType.toLowerCase(), 'sia-platform'],
+        attributes: customAttributes || []
+      };
+
+      // Add storyworld context if available
+      if (storyworldContext) {
+        metadata.storyworldContext = {
+          storyworldId: storyworldContext.id,
+          storyworldName: storyworldContext.name,
+          storyworldDescription: storyworldContext.description,
+          genre: storyworldContext.genre,
+          themes: storyworldContext.themes
+        };
+
+        // Enhanced description with storyworld context
+        metadata.description = `A ${assetType.toLowerCase()} asset from the "${storyworldContext.name}" storyworld. ${storyworldContext.description}`;
+        
+        // Add storyworld-specific tags
+        if (storyworldContext.genre) {
+          metadata.tags?.push(storyworldContext.genre.toLowerCase());
+        }
+        if (storyworldContext.themes) {
+          metadata.tags?.push(...storyworldContext.themes.map(theme => theme.toLowerCase()));
+        }
+
+        // Add storyworld attributes
+        metadata.attributes?.push(
+          { trait_type: 'Storyworld', value: storyworldContext.name },
+          { trait_type: 'Genre', value: storyworldContext.genre || 'Unknown' }
+        );
+      }
+
+      // Add creator attributes
+      metadata.attributes?.push(
+        { trait_type: 'Creator', value: creatorName },
+        { trait_type: 'Platform', value: 'SIA' },
+        { trait_type: 'Asset Type', value: assetType }
+      );
+
+      functions.logger.info('✅ Enhanced IP metadata generated successfully');
+      return metadata;
+    } catch (error) {
+      functions.logger.error('❌ Failed to generate enhanced metadata:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Map SIA asset types to Story Protocol IP types
+   */
+  private mapAssetTypeToIPType(assetType: string): IPMetadata['ipType'] {
+    const typeMap: Record<string, IPMetadata['ipType']> = {
+      'CHARACTER': 'CHARACTER',
+      'IMAGE': 'ART',
+      'VIDEO': 'VIDEO',
+      'AUDIO': 'MUSIC',
+      'MUSIC': 'MUSIC',
+      'TEXT': 'STORY',
+      'DOCUMENT': 'STORY',
+      'GAME': 'GAME'
+    };
+    
+    return typeMap[assetType.toUpperCase()] || 'OTHER';
+  }
+
+  /**
+   * Register IP Asset (currently mocked)
+   */
+  async registerIPAsset(
+    metadata: IPMetadata,
+    pilTemplate: string = 'non-commercial-social-remixing',
+    assetId: string
+  ): Promise<{
+    success: boolean;
+    ipId?: string;
+    tokenId?: string;
+    licenseTermsId?: string;
+    metadataUrl?: string;
+    txHash?: string;
+    error?: string;
+  }> {
+    try {
+      functions.logger.info('🛡️ Registering IP Asset (MOCK)', { 
+        title: metadata.title, 
+        pilTemplate, 
+        assetId 
+      });
+
+      // Get PIL template details
+      const template = Object.values(PIL_TEMPLATES).find(t => t.id === pilTemplate);
+      if (!template) {
+        throw new Error(`Template ${pilTemplate} not found`);
+      }
+
+      // Store metadata in Firebase Storage
+      const metadataUrl = await this.storeMetadataInFirebase(metadata, assetId);
+
+      // TODO: Replace with actual Story Protocol registration when ready
+      // const result = await this.client.ipAsset.register({
+      //   nftContract: nftContractAddress,
+      //   tokenId: tokenId,
+      //   metadata: {
+      //     metadataURI: metadataUrl,
+      //     metadataHash: keccak256(JSON.stringify(metadata)),
+      //     nftMetadataURI: metadataUrl,
+      //     nftMetadataHash: keccak256(JSON.stringify(metadata))
+      //   }
+      // });
+
+      // Mock response for development
+      const mockResult = {
+        success: true,
+        ipId: `0x${Math.random().toString(16).slice(2, 42)}`,
+        tokenId: Math.floor(Math.random() * 10000).toString(),
+        licenseTermsId: (template as any).licenseTermsId || '1',
+        metadataUrl,
+        txHash: `0x${Math.random().toString(16).slice(2, 66)}`,
+        pilTemplate: template.name,
+        mintingFee: template.mintingFee,
+        currency: template.currency,
+        licenseTerms: {
+          allowDerivatives: template.terms.derivativesAllowed,
+          commercialUse: template.terms.commercialUse,
+          royaltyPercentage: template.terms.commercialRevShare,
+          territory: 'GLOBAL',
+          attribution: template.terms.derivativesAttribution || template.terms.commercialAttribution
+        },
+        registeredAt: new Date().toISOString()
+      };
+
+      functions.logger.info('✅ IP Asset registered successfully (MOCK)', mockResult);
+      return mockResult;
+    } catch (error) {
+      functions.logger.error('❌ Failed to register IP Asset:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Get available PIL templates
+   */
+  async getPILTemplates(): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    mintingFee: string;
+    currency: string;
+    features: string[];
+    useCases: string[];
+    terms: any;
+  }>> {
+    return Object.values(PIL_TEMPLATES);
+  }
+
+  /**
+   * Validate IP metadata
+   */
+  validateMetadata(metadata: IPMetadata): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!metadata.title || metadata.title.trim().length === 0) {
+      errors.push('Title is required');
+    }
+
+    if (!metadata.description || metadata.description.trim().length === 0) {
+      errors.push('Description is required');
+    }
+
+    if (!metadata.creators || metadata.creators.length === 0) {
+      errors.push('At least one creator is required');
+    }
+
+    if (metadata.creators) {
+      metadata.creators.forEach((creator, index) => {
+        if (!creator.name || creator.name.trim().length === 0) {
+          errors.push(`Creator ${index + 1} name is required`);
+        }
+      });
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+}
+
+// Export types and templates
+export { PIL_TEMPLATES as StoryProtocolTemplates }; 

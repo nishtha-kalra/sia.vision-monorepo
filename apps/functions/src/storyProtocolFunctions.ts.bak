@@ -1,0 +1,543 @@
+import * as functions from 'firebase-functions';
+import { onCall } from 'firebase-functions/v2/https';
+import { StoryProtocolService, IPMetadata } from './lib/storyProtocolService';
+import { AssetService } from './lib/assetService';
+import { StoryworldService } from './lib/storyworldService';
+
+import { generate } from '@genkit-ai/ai';
+import { gemini15Flash } from '@genkit-ai/googleai';
+
+/**
+ * Register an asset as IP on Story Protocol
+ */
+export const registerAssetAsIP = onCall(async (request) => {
+  try {
+    const { assetId, pilTemplate = 'non-commercial-social-remixing', customMetadata } = request.data;
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    if (!assetId) {
+      throw new functions.https.HttpsError('invalid-argument', 'Asset ID is required');
+    }
+
+    functions.logger.info('🛡️ Registering asset as IP', { assetId, pilTemplate, uid });
+
+    // Get asset details from MongoDB
+    const asset = await AssetService.getAssetById(assetId, uid);
+    if (!asset) {
+      throw new functions.https.HttpsError('not-found', 'Asset not found or access denied');
+    }
+
+    // Get storyworld context if asset belongs to a storyworld
+    let storyworldContext;
+    if (asset.storyworldIds && asset.storyworldIds.length > 0) {
+      const storyworld = await StoryworldService.getById(asset.storyworldIds[0]);
+      if (storyworld) {
+        storyworldContext = {
+          id: storyworld._id,
+          name: storyworld.name,
+          description: storyworld.description,
+          genre: storyworld.genre,
+          themes: storyworld.themes
+        };
+      }
+    }
+
+    // Get user information for creator details
+    const userInfo = {
+      uid: uid,
+      email: request.auth?.token?.email,
+      displayName: request.auth?.token?.name,
+      walletAddress: undefined // TODO: Get from user profile when wallet integration is complete
+    };
+
+    // Initialize Story Protocol service
+    const storyProtocolService = new StoryProtocolService();
+    await storyProtocolService.initialize();
+
+    // Generate enhanced metadata using storyworld context
+    const metadata = await storyProtocolService.generateEnhancedMetadata(
+      asset.name,
+      asset.type,
+      userInfo,
+      storyworldContext,
+      customMetadata?.attributes
+    );
+
+    // Override with any custom metadata provided
+    if (customMetadata) {
+      if (customMetadata.title) metadata.title = customMetadata.title;
+      if (customMetadata.description) metadata.description = customMetadata.description;
+      if (customMetadata.tags) metadata.tags = [...(metadata.tags || []), ...customMetadata.tags];
+    }
+
+    // Register the IP asset
+    const result = await storyProtocolService.registerIPAsset(metadata, pilTemplate, assetId);
+
+    if (result.success) {
+      // Update asset in MongoDB with IP registration details
+      await AssetService.update(assetId, {
+        ipStatus: 'REGISTERED',
+        ipId: result.ipId,
+        onChainId: result.tokenId,
+        pilTemplate: pilTemplate,
+        ipMetadataUrl: result.metadataUrl,
+        ipRegisteredAt: new Date()
+      });
+
+      functions.logger.info('✅ Asset registered as IP successfully', {
+        assetId,
+        ipId: result.ipId,
+        pilTemplate
+      });
+    }
+
+    return {
+      success: result.success,
+      ipId: result.ipId,
+      tokenId: result.tokenId,
+      licenseTermsId: result.licenseTermsId,
+      metadataUrl: result.metadataUrl,
+      txHash: result.txHash,
+      pilTemplate: pilTemplate,
+      error: result.error
+    };
+  } catch (error) {
+    functions.logger.error('❌ Failed to register asset as IP', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      error instanceof Error ? error.message : 'Failed to register asset as IP'
+    );
+  }
+});
+
+/**
+ * Get available PIL templates
+ */
+export const getPILTemplates = onCall(async (request) => {
+  try {
+    functions.logger.info('📋 Getting PIL templates');
+
+    const storyProtocolService = new StoryProtocolService();
+    const templates = await storyProtocolService.getPILTemplates();
+
+    functions.logger.info('✅ PIL templates retrieved successfully', {
+      count: templates.length,
+      templates: templates.map(t => ({ id: t.id, name: t.name }))
+    });
+
+    return {
+      success: true,
+      templates
+    };
+  } catch (error) {
+    functions.logger.error('❌ Failed to get PIL templates', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get PIL templates'
+    };
+  }
+});
+
+/**
+ * Generate IP metadata using AI with storyworld context
+ */
+export const generateIPMetadata = onCall(async (request) => {
+  try {
+    const { assetId, assetName, assetType, storyworldId, customPrompt } = request.data;
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    if (!assetName || !assetType) {
+      throw new functions.https.HttpsError('invalid-argument', 'Asset name and type are required');
+    }
+
+    functions.logger.info('🤖 Generating IP metadata with AI', { 
+      assetId, 
+      assetName, 
+      assetType, 
+      storyworldId,
+      uid 
+    });
+
+    // Get storyworld context if provided
+    let storyworldContext;
+    if (storyworldId) {
+      const storyworld = await StoryworldService.getById(storyworldId);
+      if (storyworld && storyworld.ownerId === uid) {
+        storyworldContext = {
+          id: storyworld._id,
+          name: storyworld.name,
+          description: storyworld.description,
+          genre: storyworld.genre,
+          themes: storyworld.themes
+        };
+      }
+    }
+
+    // Get user information
+    const userInfo = {
+      uid: uid,
+      email: request.auth?.token?.email,
+      displayName: request.auth?.token?.name,
+      walletAddress: undefined // TODO: Get from user profile
+    };
+
+    // Build AI prompt with storyworld context
+    let prompt = `Generate comprehensive IP metadata for a ${assetType} asset named "${assetName}".`;
+    
+    if (storyworldContext) {
+      prompt += ` This asset belongs to the "${storyworldContext.name}" storyworld: ${storyworldContext.description}`;
+      if (storyworldContext.genre) {
+        prompt += ` Genre: ${storyworldContext.genre}.`;
+      }
+      if (storyworldContext.themes && storyworldContext.themes.length > 0) {
+        prompt += ` Themes: ${storyworldContext.themes.join(', ')}.`;
+      }
+    }
+
+    if (customPrompt) {
+      prompt += ` Additional context: ${customPrompt}`;
+    }
+
+    prompt += `
+
+Please provide a JSON response with the following structure:
+{
+  "title": "Enhanced title for the IP asset",
+  "description": "Detailed description (2-3 sentences) that captures the essence and potential of this asset",
+  "tags": ["relevant", "tags", "for", "discoverability"],
+  "attributes": [
+    {"trait_type": "Style", "value": "example_style"},
+    {"trait_type": "Mood", "value": "example_mood"},
+    {"trait_type": "Theme", "value": "example_theme"}
+  ],
+  "suggestedPIL": "non-commercial-social-remixing",
+  "pilReasoning": "Explanation of why this PIL template is recommended",
+  "confidence": 0.85,
+  "reasoning": "Brief explanation of the metadata choices"
+}
+
+Available PIL templates:
+- "non-commercial-social-remixing": Free remixing for non-commercial use
+- "commercial-use": Commercial use without derivatives
+- "commercial-remix": Commercial use with derivatives and revenue sharing
+- "creative-commons-attribution": Open license similar to CC-BY
+
+Consider the asset type, storyworld context, and potential use cases when suggesting the PIL template.`;
+
+    try {
+      // Generate metadata using AI
+      const aiResponse = await generate({
+        model: gemini15Flash,
+        prompt: prompt,
+        config: {
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+        },
+      });
+
+      const aiText = aiResponse.text();
+      functions.logger.info('🤖 AI response received', { responseLength: aiText.length });
+
+      // Parse AI response
+      let aiMetadata;
+      try {
+        // Extract JSON from AI response
+        const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          aiMetadata = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON found in AI response');
+        }
+      } catch (parseError) {
+        functions.logger.warn('⚠️ Failed to parse AI response, using fallback', parseError);
+        aiMetadata = generateFallbackMetadata(assetName, assetType, storyworldContext);
+      }
+
+      // Initialize Story Protocol service for enhanced metadata generation
+      const storyProtocolService = new StoryProtocolService();
+      await storyProtocolService.initialize();
+
+      // Generate base metadata with storyworld context
+      const baseMetadata = await storyProtocolService.generateEnhancedMetadata(
+        aiMetadata.title || assetName,
+        assetType,
+        userInfo,
+        storyworldContext,
+        aiMetadata.attributes
+      );
+
+      // Enhance with AI-generated content
+      const enhancedMetadata = {
+        ...baseMetadata,
+        title: aiMetadata.title || baseMetadata.title,
+        description: aiMetadata.description || baseMetadata.description,
+        tags: [...(baseMetadata.tags || []), ...(aiMetadata.tags || [])],
+        attributes: [...(baseMetadata.attributes || []), ...(aiMetadata.attributes || [])],
+        aiGenerated: {
+          model: 'gemini-1.5-flash',
+          prompt: prompt,
+          confidence: aiMetadata.confidence || 0.8,
+          generatedAt: new Date().toISOString()
+        }
+      };
+
+      functions.logger.info('✅ IP metadata generated successfully', {
+        title: enhancedMetadata.title,
+        suggestedPIL: aiMetadata.suggestedPIL,
+        confidence: aiMetadata.confidence
+      });
+
+      return {
+        success: true,
+        metadata: enhancedMetadata,
+        suggestedPIL: aiMetadata.suggestedPIL || 'non-commercial-social-remixing',
+        pilReasoning: aiMetadata.pilReasoning || 'Default recommendation for new IP assets',
+        confidence: aiMetadata.confidence || 0.8,
+        reasoning: aiMetadata.reasoning || 'Generated using AI with storyworld context'
+      };
+    } catch (aiError) {
+      functions.logger.warn('⚠️ AI generation failed, using enhanced fallback', aiError);
+      
+      // Use enhanced fallback with storyworld context
+      const storyProtocolService = new StoryProtocolService();
+      await storyProtocolService.initialize();
+
+      const fallbackMetadata = await storyProtocolService.generateEnhancedMetadata(
+        assetName,
+        assetType,
+        userInfo,
+        storyworldContext
+      );
+
+      return {
+        success: true,
+        metadata: fallbackMetadata,
+        suggestedPIL: assetType === 'CHARACTER' ? 'commercial-remix' : 'non-commercial-social-remixing',
+        pilReasoning: assetType === 'CHARACTER' ? 
+          'Character assets work well with commercial remix licenses for derivative works and revenue sharing.' :
+          'Non-commercial social remixing allows for community engagement while protecting commercial rights.',
+        confidence: 0.7,
+        reasoning: 'Generated using enhanced fallback with storyworld context'
+      };
+    }
+  } catch (error) {
+    functions.logger.error('❌ Failed to generate IP metadata', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      error instanceof Error ? error.message : 'Failed to generate IP metadata'
+    );
+  }
+});
+
+/**
+ * Generate fallback metadata when AI fails
+ */
+function generateFallbackMetadata(assetName: string, assetType: string, storyworldContext?: any) {
+  return {
+    title: `${assetName} - ${assetType} Asset`,
+    description: storyworldContext 
+      ? `A ${assetType.toLowerCase()} asset from the "${storyworldContext.name}" storyworld. ${storyworldContext.description}`
+      : `A unique ${assetType.toLowerCase()} asset created for intellectual property protection and licensing.`,
+    tags: [
+      assetType.toLowerCase(),
+      'ip-asset',
+      'sia-platform',
+      ...(storyworldContext?.genre ? [storyworldContext.genre.toLowerCase()] : []),
+      ...(storyworldContext?.themes || []).map((theme: string) => theme.toLowerCase())
+    ],
+    attributes: [
+      { trait_type: 'Asset Type', value: assetType },
+      { trait_type: 'Platform', value: 'SIA' },
+      ...(storyworldContext ? [
+        { trait_type: 'Storyworld', value: storyworldContext.name },
+        { trait_type: 'Genre', value: storyworldContext.genre || 'Unknown' }
+      ] : [])
+    ],
+    suggestedPIL: assetType === 'CHARACTER' ? 'commercial-remix' : 'non-commercial-social-remixing',
+    pilReasoning: assetType === 'CHARACTER' ? 
+      'Character assets work well with commercial remix licenses for derivative works and revenue sharing.' :
+      'Non-commercial social remixing allows for community engagement while protecting commercial rights.',
+    confidence: 0.7,
+    reasoning: 'Generated using enhanced fallback with storyworld context'
+  };
+}
+
+/**
+ * Get IP asset information
+ */
+export const getIPAssetInfo = onCall(async (request) => {
+  try {
+    const { assetId } = request.data;
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    if (!assetId) {
+      throw new functions.https.HttpsError('invalid-argument', 'Asset ID is required');
+    }
+
+    functions.logger.info('📋 Getting IP asset info', { assetId, uid });
+
+    // Get asset from MongoDB
+    const asset = await AssetService.getAssetById(assetId, uid);
+    if (!asset) {
+      throw new functions.https.HttpsError('not-found', 'Asset not found or access denied');
+    }
+
+    return {
+      success: true,
+      ipStatus: asset.ipStatus || 'NOT_REGISTERED',
+      ipId: asset.ipId,
+      onChainId: asset.onChainId,
+      pilTemplate: asset.pilTemplate,
+      ipMetadataUrl: asset.ipMetadataUrl,
+      ipRegisteredAt: asset.ipRegisteredAt
+    };
+  } catch (error) {
+    functions.logger.error('❌ Failed to get IP asset info', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get IP asset info'
+    };
+  }
+});
+
+/**
+ * Batch register multiple assets as IP
+ */
+export const batchRegisterAssetsAsIP = onCall(async (request) => {
+  try {
+    const { assetIds, pilTemplate = 'non-commercial-social-remixing' } = request.data;
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+    }
+
+    if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
+      throw new functions.https.HttpsError('invalid-argument', 'Asset IDs array is required');
+    }
+
+    if (assetIds.length > 10) {
+      throw new functions.https.HttpsError('invalid-argument', 'Maximum 10 assets can be registered at once');
+    }
+
+    functions.logger.info('🛡️ Batch registering assets as IP', { 
+      assetCount: assetIds.length, 
+      pilTemplate, 
+      uid 
+    });
+
+    const results = [];
+    const storyProtocolService = new StoryProtocolService();
+    await storyProtocolService.initialize();
+
+    for (const assetId of assetIds) {
+      try {
+        // Get asset details
+        const asset = await AssetService.getAssetById(assetId, uid);
+        if (!asset) {
+          results.push({
+            assetId,
+            success: false,
+            error: 'Asset not found or access denied'
+          });
+          continue;
+        }
+
+        // Get storyworld context
+        let storyworldContext;
+        if (asset.storyworldIds && asset.storyworldIds.length > 0) {
+          const storyworld = await StoryworldService.getById(asset.storyworldIds[0]);
+          if (storyworld) {
+            storyworldContext = {
+              id: storyworld._id,
+              name: storyworld.name,
+              description: storyworld.description,
+              genre: storyworld.genre,
+              themes: storyworld.themes
+            };
+          }
+        }
+
+        // Get user information
+        const userInfo = {
+          uid: uid,
+          email: request.auth?.token?.email,
+          displayName: request.auth?.token?.name,
+          walletAddress: undefined
+        };
+
+        // Generate metadata
+        const metadata = await storyProtocolService.generateEnhancedMetadata(
+          asset.name,
+          asset.type,
+          userInfo,
+          storyworldContext
+        );
+
+        // Register IP
+        const result = await storyProtocolService.registerIPAsset(metadata, pilTemplate, assetId);
+
+        if (result.success) {
+          // Update asset in MongoDB
+          await AssetService.update(assetId, {
+            ipStatus: 'REGISTERED',
+            ipId: result.ipId,
+            onChainId: result.tokenId,
+            pilTemplate: pilTemplate,
+            ipMetadataUrl: result.metadataUrl,
+            ipRegisteredAt: new Date()
+          });
+        }
+
+        results.push({
+          assetId,
+          success: result.success,
+          ipId: result.ipId,
+          tokenId: result.tokenId,
+          error: result.error
+        });
+      } catch (error) {
+        results.push({
+          assetId,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    functions.logger.info('✅ Batch IP registration completed', {
+      total: assetIds.length,
+      successful: successCount,
+      failed: assetIds.length - successCount
+    });
+
+    return {
+      success: true,
+      results,
+      summary: {
+        total: assetIds.length,
+        successful: successCount,
+        failed: assetIds.length - successCount
+      }
+    };
+  } catch (error) {
+    functions.logger.error('❌ Failed to batch register assets as IP', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      error instanceof Error ? error.message : 'Failed to batch register assets as IP'
+    );
+  }
+}); 

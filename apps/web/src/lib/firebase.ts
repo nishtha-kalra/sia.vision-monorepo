@@ -34,7 +34,7 @@ if (typeof window !== 'undefined' && isFirebaseConfigValid) {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   db = getFirestore(app);
   auth = getAuth(app);
-  functionsInstance = getFunctions(app);
+  functionsInstance = getFunctions(app, 'us-central1'); // Specify the region
 }
 
 export { db, auth, functionsInstance as functions };

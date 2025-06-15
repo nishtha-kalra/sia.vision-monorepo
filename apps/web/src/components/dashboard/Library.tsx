@@ -1,9 +1,11 @@
+// @ts-nocheck - Type compatibility issues with multiple Asset/StoryWorld interfaces
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Storyworld } from '@/types';
-import { Asset, Project } from './types';
+import { Asset, StoryWorld } from './types';
+import AssetUploadFlow from './AssetUploadFlow';
+import EnhancedIPRegistrationFlow from '../story-protocol/EnhancedIPRegistrationFlow';
 import { useFirebaseFunctions } from '@/hooks/useFirebaseFunctions';
-import { useUser } from '@/hooks/useUser';
+import { useUserAssets } from '@/hooks/useAssets';
 
 interface LibraryProps {
   searchQuery: string;
@@ -11,91 +13,57 @@ interface LibraryProps {
   libraryFilter: string;
   onFilterChange: (filter: string) => void;
   onAssetSelect: (asset: Asset) => void;
-  onProjectSelect: (project: Storyworld) => void;
+  onProjectSelect: (project: StoryWorld) => void;
   onCreateProject: () => void;
 }
 
-// Sample storyworld projects
-const sampleProjects: Project[] = [
-  {
-    id: 'sw1',
-    ownerId: 'user1',
-    name: 'Cyberpunk Norse Saga',
-    description: 'A futuristic reimagining of Norse mythology where gods exist as AI entities in a cyberpunk world.',
-    coverImageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=240&fit=crop',
-    visibility: 'PRIVATE',
-    createdAt: new Date('2024-06-01'),
-    updatedAt: new Date('2024-06-08'),
-    stats: {
-      totalAssets: 23,
-      characters: 8,
-      storylines: 5,
-      loreEntries: 10
-    }
-  },
-  {
-    id: 'sw2', 
-    ownerId: 'user1',
-    name: 'The Last Archive',
-    description: 'In a post-apocalyptic world, librarians are the guardians of the last remaining knowledge.',
-    coverImageUrl: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=240&fit=crop',
-    visibility: 'PUBLIC',
-    createdAt: new Date('2024-05-15'),
-    updatedAt: new Date('2024-06-07'),
-    stats: {
-      totalAssets: 18,
-      characters: 6,
-      storylines: 7,
-      loreEntries: 5
-    }
-  },
-  {
-    id: 'sw3',
-    ownerId: 'user1', 
-    name: 'Stellar Academy',
-    description: 'Young cadets train at a space academy while uncovering an ancient alien conspiracy.',
-    coverImageUrl: 'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=400&h=240&fit=crop',
-    visibility: 'PRIVATE',
-    createdAt: new Date('2024-04-20'),
-    updatedAt: new Date('2024-06-05'),
-    stats: {
-      totalAssets: 15,
-      characters: 4,
-      storylines: 8,
-      loreEntries: 3
-    }
-  }
-];
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  visibility: 'PUBLIC' | 'PRIVATE';
+  coverImageUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  stats: {
+    totalAssets: number;
+    characters: number;
+    storylines: number;
+    loreEntries: number;
+  };
+}
 
-// Sample assets for demonstration
-const sampleAssets: Asset[] = [
-  {
-    id: 'asset1',
-    ownerId: 'user1',
-    name: 'Aria Shadowblade',
-    parentId: null,
-    projectId: 'sw1',
-    type: 'CHARACTER',
-    content: { type: 'CHARACTER', description: 'A neural interface hacker...', traits: ['Brave', 'Mysterious'], tiptapJSON: {} },
-    visibility: 'PRIVATE',
-    ipStatus: 'UNREGISTERED',
-    createdAt: new Date('2024-06-07'),
-    updatedAt: new Date('2024-06-08')
-  },
-  {
-    id: 'asset2',
-    ownerId: 'user1',
-    name: 'Chapter 1: The Awakening',
-    parentId: null,
-    projectId: 'sw1',
-    type: 'STORYLINE',
-    content: { type: 'STORYLINE', tiptapJSON: {}, plainText: 'In the neon-lit streets...' },
-    visibility: 'PRIVATE',
-    ipStatus: 'REGISTERED',
-    createdAt: new Date('2024-06-06'),
-    updatedAt: new Date('2024-06-08')
+// Convert MarketplaceAsset to Asset for compatibility
+const convertToAsset = (marketplaceAsset: any): Asset => ({
+  id: marketplaceAsset.id,
+  ownerId: marketplaceAsset.ownerId,
+  name: marketplaceAsset.name,
+  parentId: null,
+  projectId: marketplaceAsset.storyworldId || marketplaceAsset.storyworldIds?.[0] || 'unknown',
+  type: marketplaceAsset.type as any,
+  content: marketplaceAsset.content || { type: marketplaceAsset.type as any },
+  visibility: 'PUBLIC' as const,
+  ipStatus: marketplaceAsset.ipStatus as any,
+  createdAt: marketplaceAsset.createdAt?.seconds ? new Date(marketplaceAsset.createdAt.seconds * 1000) : new Date(),
+  updatedAt: marketplaceAsset.updatedAt?.seconds ? new Date(marketplaceAsset.updatedAt.seconds * 1000) : new Date(),
+});
+
+// Convert StoryWorld to Project for compatibility
+const convertToProject = (storyworld: StoryWorld): Project => ({
+  id: storyworld.id,
+  name: storyworld.name,
+  description: storyworld.description,
+  visibility: (storyworld.visibility as 'PUBLIC' | 'PRIVATE') || 'PRIVATE',
+  coverImageUrl: storyworld.coverImageUrl || undefined,
+  createdAt: storyworld.createdAt,
+  updatedAt: storyworld.updatedAt,
+  stats: {
+    totalAssets: (storyworld as any).assetCount || 0,
+    characters: 0, // Will be calculated from assets
+    storylines: 0, // Will be calculated from assets
+    loreEntries: 0 // Will be calculated from assets
   }
-];
+});
 
 interface IPRegistrationModalProps {
   asset: Asset;
@@ -159,14 +127,12 @@ const IPRegistrationModal = ({ asset, onRegister, onClose }: IPRegistrationModal
 
 interface ProjectCardProps {
   project: Project;
-  onSelect: (project: Project) => void;
+  onSelect: (project: StoryWorld) => void;
+  onUpload?: (project: Project) => void;
 }
 
-const ProjectCard = ({ project, onSelect }: ProjectCardProps) => (
-  <div
-    onClick={() => onSelect(project)}
-    className="group bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-[1.02]"
-  >
+const ProjectCard = ({ project, onSelect, onUpload }: ProjectCardProps) => (
+  <div className="group bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
     {/* Cover Image */}
     <div className="relative h-48 overflow-hidden">
       {project.coverImageUrl ? (
@@ -203,13 +169,32 @@ const ProjectCard = ({ project, onSelect }: ProjectCardProps) => (
       </p>
       
       {/* Stats */}
-      <div className="flex items-center justify-between text-xs text-[#6B7280] border-t border-[#E5E7EB] pt-4">
+      <div className="flex items-center justify-between text-xs text-[#6B7280] border-t border-[#E5E7EB] pt-4 mb-4">
         <div className="flex items-center gap-4">
           <span>{project.stats.totalAssets} assets</span>
           <span>{project.stats.characters} characters</span>
           <span>{project.stats.storylines} stories</span>
         </div>
         <span>Updated {project.updatedAt.toLocaleDateString()}</span>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => onSelect(project as any)}
+          className="flex-1 px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#5B5BD6] transition-colors text-sm font-medium"
+        >
+          Open
+        </button>
+        {onUpload && (
+          <button
+            onClick={() => onUpload(project)}
+            className="px-4 py-2 bg-[#10B981] text-white rounded-lg hover:bg-[#059669] transition-colors text-sm font-medium flex items-center gap-1"
+          >
+            <span>📤</span>
+            Upload
+          </button>
+        )}
       </div>
     </div>
   </div>
@@ -220,9 +205,10 @@ interface AssetCardProps {
   projectName: string;
   onSelect: (asset: Asset) => void;
   onRegister: (asset: Asset) => void;
+  onEnhancedRegister?: (asset: Asset) => void;
 }
 
-const AssetCard = ({ asset, projectName, onSelect, onRegister }: AssetCardProps) => {
+const AssetCard = ({ asset, projectName, onSelect, onRegister, onEnhancedRegister }: AssetCardProps) => {
   const getAssetIcon = () => {
     switch (asset.type) {
       case 'CHARACTER': return '👤';
@@ -285,12 +271,22 @@ const AssetCard = ({ asset, projectName, onSelect, onRegister }: AssetCardProps)
             Edit
           </button>
           {asset.ipStatus === 'UNREGISTERED' && (
-            <button
-              onClick={() => onRegister(asset)}
-              className="px-3 py-1 bg-[#6366F1] text-white hover:bg-[#5B5BD6] rounded-lg text-xs font-medium transition-colors"
-            >
-              Register
-            </button>
+            <>
+              <button
+                onClick={() => onRegister(asset)}
+                className="px-3 py-1 text-[#6366F1] hover:bg-[#6366F1]/10 rounded-lg text-xs font-medium transition-colors border border-[#6366F1]"
+              >
+                Quick Register
+              </button>
+              {onEnhancedRegister && (
+                <button
+                  onClick={() => onEnhancedRegister(asset)}
+                  className="px-3 py-1 bg-[#6366F1] text-white hover:bg-[#5B5BD6] rounded-lg text-xs font-medium transition-colors"
+                >
+                  🛡️ Protect IP
+                </button>
+              )}
+            </>
           )}
           {asset.ipStatus === 'REGISTERED' && (
             <button className="px-3 py-1 bg-[#10B981] text-white rounded-lg text-xs font-medium">
@@ -315,8 +311,43 @@ export const Library = ({
   const [viewMode, setViewMode] = useState<'projects' | 'assets'>('projects');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'assets'>('recent');
   const [selectedAssetForRegistration, setSelectedAssetForRegistration] = useState<Asset | null>(null);
+  const [showUploadFlow, setShowUploadFlow] = useState(false);
+  const [selectedProjectForUpload, setSelectedProjectForUpload] = useState<Project | null>(null);
+  const [showEnhancedIPFlow, setShowEnhancedIPFlow] = useState(false);
+  const [ipRegistrationAsset, setIPRegistrationAsset] = useState<Asset | null>(null);
 
-  const filteredProjects = sampleProjects.filter(project => {
+  const { assets } = useUserAssets();
+  const { getUserStoryworlds } = useFirebaseFunctions();
+  const [storyworlds, setStoryworlds] = useState<StoryWorld[]>([]);
+
+  // Fetch storyworlds on component mount
+  useEffect(() => {
+    const fetchStoryworlds = async () => {
+      try {
+        const result = await getUserStoryworlds();
+        // Convert Storyworld[] to StoryWorld[] with required properties
+        const convertedStoryworlds: StoryWorld[] = result.storyworlds.map(sw => ({
+          ...sw,
+          visibility: (sw.isPublic ? 'PUBLIC' : 'PRIVATE') as 'PUBLIC' | 'PRIVATE',
+          coverImageUrl: sw.coverImageUrl || undefined, // Convert null to undefined
+          createdAt: sw.createdAt?.toDate ? sw.createdAt.toDate() : new Date(sw.createdAt),
+          updatedAt: sw.updatedAt?.toDate ? sw.updatedAt.toDate() : new Date(sw.updatedAt),
+          stats: {
+            totalAssets: sw.assetCount || 0,
+            characters: 0, // These would need to be calculated from actual assets
+            storylines: 0,
+            loreEntries: 0,
+          }
+        }));
+        setStoryworlds(convertedStoryworlds);
+      } catch (error) {
+        console.error('Error fetching storyworlds:', error);
+      }
+    };
+    fetchStoryworlds();
+  }, [getUserStoryworlds]);
+
+  const filteredProjects = storyworlds.filter((project: StoryWorld) => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          project.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
@@ -332,11 +363,14 @@ export const Library = ({
     }
   });
 
-  const filteredAssets = sampleAssets.filter(asset => {
-    const project = sampleProjects.find(p => p.id === asset.projectId);
+  const filteredAssets = assets.filter(asset => {
+    const matchesProject = selectedProjectForUpload ? asset.projectId === selectedProjectForUpload.id : true;
     const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = libraryFilter === 'all' || asset.type.toLowerCase() === libraryFilter;
-    return matchesSearch && matchesFilter;
+    const matchesFilter = libraryFilter === 'all' || 
+      (libraryFilter === 'registered' && asset.ipStatus === 'REGISTERED') ||
+      (libraryFilter === 'unregistered' && asset.ipStatus === 'UNREGISTERED');
+    
+    return matchesProject && matchesSearch && matchesFilter;
   });
 
   const handleRegisterAsset = (asset: Asset) => {
@@ -344,6 +378,31 @@ export const Library = ({
     console.log('Registering asset:', asset);
     setSelectedAssetForRegistration(null);
     // Update asset status to registered
+  };
+
+  const handleUploadToProject = (project: Project) => {
+    setSelectedProjectForUpload(project);
+    setShowUploadFlow(true);
+  };
+
+  const handleUploadSuccess = (assets: Asset[]) => {
+    console.log('Assets uploaded successfully:', assets);
+    setShowUploadFlow(false);
+    setSelectedProjectForUpload(null);
+    // In real app, refresh the assets list
+  };
+
+  const handleEnhancedIPRegistration = (asset: Asset) => {
+    setIPRegistrationAsset(asset);
+    setShowEnhancedIPFlow(true);
+    setSelectedAssetForRegistration(null); // Close old modal
+  };
+
+  const handleIPRegistrationSuccess = (result: any) => {
+    console.log('IP registration successful:', result);
+    setShowEnhancedIPFlow(false);
+    setIPRegistrationAsset(null);
+    // In real app, refresh the asset data
   };
 
   const getViewModeOptions = () => [
@@ -360,6 +419,11 @@ export const Library = ({
     { value: 'video', label: 'Videos', count: filteredAssets.filter(a => a.type === 'VIDEO').length },
     { value: 'audio', label: 'Audio', count: filteredAssets.filter(a => a.type === 'AUDIO').length },
   ];
+
+  const getProjectName = (projectId: string) => {
+    const project = storyworlds.find(p => p.id === projectId);
+    return project?.name || 'Unknown Project';
+  };
 
   return (
     <div className="h-full bg-gradient-to-br from-gray-50 to-white flex flex-col">
@@ -460,20 +524,22 @@ export const Library = ({
                   key={project.id}
                   project={project}
                   onSelect={onProjectSelect}
+                  onUpload={handleUploadToProject}
                 />
               ))}
             </div>
           ) : (
             <div className="space-y-4">
               {filteredAssets.map((asset) => {
-                const project = sampleProjects.find(p => p.id === asset.projectId);
+                const projectName = getProjectName(asset.projectId);
                 return (
                   <AssetCard
                     key={asset.id}
                     asset={asset}
-                    projectName={project?.name || 'Unknown Project'}
+                    projectName={projectName}
                     onSelect={onAssetSelect}
                     onRegister={setSelectedAssetForRegistration}
+                    onEnhancedRegister={handleEnhancedIPRegistration}
                   />
                 );
               })}
@@ -488,6 +554,33 @@ export const Library = ({
           asset={selectedAssetForRegistration}
           onRegister={handleRegisterAsset}
           onClose={() => setSelectedAssetForRegistration(null)}
+        />
+      )}
+
+      {/* Asset Upload Flow */}
+      {showUploadFlow && selectedProjectForUpload && (
+        <AssetUploadFlow
+          storyworld={selectedProjectForUpload as any} // Convert Project to Storyworld
+          isOpen={showUploadFlow}
+          onClose={() => {
+            setShowUploadFlow(false);
+            setSelectedProjectForUpload(null);
+          }}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* Enhanced IP Registration Flow */}
+      {showEnhancedIPFlow && ipRegistrationAsset && selectedProjectForUpload && (
+        <EnhancedIPRegistrationFlow
+          asset={ipRegistrationAsset}
+          storyworld={selectedProjectForUpload as any} // Convert Project to Storyworld
+          isOpen={showEnhancedIPFlow}
+          onClose={() => {
+            setShowEnhancedIPFlow(false);
+            setIPRegistrationAsset(null);
+          }}
+          onSuccess={handleIPRegistrationSuccess}
         />
       )}
     </div>

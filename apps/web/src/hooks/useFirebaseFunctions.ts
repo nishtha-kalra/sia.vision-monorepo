@@ -423,6 +423,68 @@ export const useFirebaseFunctions = () => {
     return result.data as StoryworldEnhancementResponse;
   }, []);
 
+  // Story Protocol Functions
+  const getPILTemplates = useCallback(async (): Promise<{
+    success: boolean;
+    templates: Array<{
+      id: string;
+      name: string;
+      description: string;
+      mintingFee: string;
+      currency: string;
+      features: string[];
+    }>;
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'getPILTemplates');
+    const result = await fn({});
+    return result.data as any;
+  }, []);
+
+  const registerAssetAsIP = useCallback(async (data: {
+    assetId: string;
+    pilTemplate: string;
+    customMetadata?: {
+      title: string;
+      description: string;
+      creatorName: string;
+      attributes: Array<{ trait_type: string; value: string }>;
+    };
+  }): Promise<{
+    success: boolean;
+    ipId?: string;
+    tokenId?: string;
+    txHash?: string;
+    pilTemplate?: string;
+    asset?: any;
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'registerAssetAsIP');
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
+  const generateIPMetadata = useCallback(async (data: {
+    assetId: string;
+    prompt?: string;
+    context?: string;
+  }): Promise<{
+    success: boolean;
+    metadata?: {
+      title: string;
+      description: string;
+      attributes: Array<{ trait_type: string; value: string }>;
+      suggestedPIL: string;
+      pilReasoning: string;
+      confidence: number;
+    };
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'generateIPMetadata');
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
   return {
     // Storyworld functions
     createStoryworld,
@@ -444,6 +506,11 @@ export const useFirebaseFunctions = () => {
     // AI Assistant functions
     processCreativePrompt,
     enhanceStoryworld,
+    
+    // Story Protocol functions
+    getPILTemplates,
+    registerAssetAsIP,
+    generateIPMetadata,
     
     // State
     uploading,

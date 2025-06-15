@@ -3,6 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Asset, Storyworld, AssetType } from '@/types';
 import { useFirebaseFunctions } from '@/hooks/useFirebaseFunctions';
 import { useUser } from '@/hooks/useUser';
+import IPRegistrationDialog from '@/components/story-protocol/IPRegistrationDialog';
+import IPStatusBadge from '@/components/story-protocol/IPStatusBadge';
+import AssetUploadFlow from './AssetUploadFlow';
+import EnhancedIPRegistrationFlow from '../story-protocol/EnhancedIPRegistrationFlow';
 
 interface LibraryIntegratedProps {
   onAssetSelect: (asset: Asset) => void;
@@ -18,7 +22,8 @@ const StoryworldHubIntegrated = ({
   onCreateAsset,
   onAssetSelect,
   onViewAssets,
-  handleAssetClick
+  handleAssetClick,
+  onUploadMedia
 }: {
   storyworld: Storyworld;
   assets: Asset[];
@@ -27,6 +32,7 @@ const StoryworldHubIntegrated = ({
   onAssetSelect: (asset: Asset) => void;
   onViewAssets: () => void;
   handleAssetClick: (asset: Asset) => void;
+  onUploadMedia: () => void;
 }) => {
   const getAssetsByType = (type: AssetType) => {
     return assets.filter(asset => asset.type === type);
@@ -153,7 +159,7 @@ const StoryworldHubIntegrated = ({
           </button>
           
           <button
-            onClick={onViewAssets}
+            onClick={onUploadMedia}
             className="p-6 bg-white rounded-xl border border-[#E5E7EB] hover:shadow-lg transition-all duration-200 text-left group"
           >
             <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🎨</div>
@@ -604,6 +610,18 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
   const [viewMode, setViewMode] = useState<'storyworlds' | 'hub' | 'assets' | 'preview'>('storyworlds');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
+  
+  // IP Protection state
+  const [ipRegistrationOpen, setIpRegistrationOpen] = useState(false);
+  const [selectedAssetForIP, setSelectedAssetForIP] = useState<Asset | null>(null);
+  
+  // New upload flow state
+  const [showUploadFlow, setShowUploadFlow] = useState(false);
+  const [showEnhancedIPFlow, setShowEnhancedIPFlow] = useState(false);
+  const [ipRegistrationAsset, setIPRegistrationAsset] = useState<Asset | null>(null);
+  
+  // Async upload progress tracking
+  const [uploadingAssets, setUploadingAssets] = useState<{ id: string; name: string; type: AssetType; file: File; progress: number }[]>([]);
 
   // Load user's storyworlds on mount
   useEffect(() => {
@@ -692,25 +710,31 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || !selectedStoryworld) return;
+    if (!files || !selectedStoryworld) {
+      console.log('No files selected or no storyworld selected');
+      return;
+    }
 
     const fileArray = Array.from(files);
+    console.log(`Starting upload of ${fileArray.length} files to storyworld: ${selectedStoryworld.name}`);
     
     try {
       await uploadMultipleAssets(
         fileArray,
         selectedStoryworld.id,
         (fileName, progress, status) => {
-          console.log(`${fileName}: ${progress}% (${status})`);
+          console.log(`📤 ${fileName}: ${progress}% (${status})`);
         },
         (results) => {
-          console.log('Upload batch complete:', results);
+          console.log('✅ Upload batch complete:', results);
           // Reload assets to show the new uploads
           loadAssets(selectedStoryworld.id);
         }
       );
     } catch (error) {
-      console.error('Error uploading files:', error);
+      console.error('❌ Error uploading files:', error);
+      // Show user-friendly error message
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
     // Clear the input
@@ -786,6 +810,91 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
     } else {
       // Open text assets in Canvas
       onAssetSelect(asset);
+    }
+  };
+
+  // IP Protection handlers
+  const handleRegisterAsIP = (asset: Asset) => {
+    console.log('🛡️ Opening IP registration for asset:', asset.name);
+    setSelectedAssetForIP(asset);
+    setIpRegistrationOpen(true);
+  };
+
+  const handleIPRegistrationSuccess = (result: any) => {
+    console.log('✅ IP Registration successful:', result);
+    // Show success message
+    alert(`Successfully registered "${selectedAssetForIP?.name}" as IP!`);
+    
+    // Reload assets to show updated IP status
+    if (selectedStoryworld) {
+      loadAssets(selectedStoryworld.id);
+    }
+    setIpRegistrationOpen(false);
+    setSelectedAssetForIP(null);
+  };
+
+  const handleIPRegistrationClose = () => {
+    setIpRegistrationOpen(false);
+    setSelectedAssetForIP(null);
+  };
+
+  const handleUploadMedia = () => {
+    setShowUploadFlow(true);
+  };
+
+  const handleUploadStart = (assets: { id: string; name: string; type: AssetType; file: File }[]) => {
+    // Add assets to uploading state with initial progress
+    const uploadingAssetsWithProgress = assets.map(asset => ({
+      ...asset,
+      progress: 0
+    }));
+    setUploadingAssets(prev => [...prev, ...uploadingAssetsWithProgress]);
+    
+    // Move to assets view to show upload progress
+    setViewMode('assets');
+  };
+
+  const handleUploadSuccess = (assets: Asset[]) => {
+    console.log('Assets uploaded successfully:', assets);
+    setShowUploadFlow(false);
+    
+    // Clear all uploading assets since uploads are complete
+    setUploadingAssets([]);
+    
+    // Reload assets to show the new uploads
+    if (selectedStoryworld) {
+      loadAssets(selectedStoryworld.id);
+    }
+  };
+
+  const handleEnhancedIPRegistration = (asset: Asset) => {
+    setIPRegistrationAsset(asset);
+    setShowEnhancedIPFlow(true);
+    setIpRegistrationOpen(false); // Close old modal if open
+  };
+
+  const handleEnhancedIPRegistrationSuccess = (result: any) => {
+    console.log('Enhanced IP registration successful:', result);
+    setShowEnhancedIPFlow(false);
+    setIPRegistrationAsset(null);
+    // Reload assets to show updated IP status
+    if (selectedStoryworld) {
+      loadAssets(selectedStoryworld.id);
+    }
+  };
+
+  // Enhanced asset click handler with IP protection context
+  const handleAssetRightClick = (e: React.MouseEvent, asset: Asset) => {
+    e.preventDefault();
+    
+    // Simple context menu for now - could be enhanced with a proper context menu component
+    const shouldShowIPOption = asset.ipStatus !== 'REGISTERED';
+    
+    if (shouldShowIPOption) {
+      const confirmed = confirm(`Would you like to register "${asset.name}" as Intellectual Property?`);
+      if (confirmed) {
+        handleRegisterAsIP(asset);
+      }
     }
   };
 
@@ -1162,6 +1271,7 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
           onAssetSelect={onAssetSelect}
           onViewAssets={() => setViewMode('assets')}
           handleAssetClick={handleAssetClick}
+          onUploadMedia={handleUploadMedia}
         />
       ) : (
         /* Assets View */
@@ -1180,36 +1290,46 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
                 <span className="text-[#111827] font-medium">{selectedStoryworld.name}</span>
               </div>
 
-              {/* Enhanced Upload Section */}
-              <MediaUploadZone
-                onFileUpload={handleFileUpload}
-                uploading={uploading}
-                storyworldName={selectedStoryworld.name}
-              />
+              {/* Upload Banner for All Media View */}
+              <div className="bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] rounded-xl p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">Upload Media Files</h3>
+                    <p className="text-white/80">Add images, videos, and audio to "{selectedStoryworld.name}"</p>
+                  </div>
+                  <button
+                    onClick={handleUploadMedia}
+                    className="flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl transition-colors font-medium"
+                  >
+                    <span>📤</span>
+                    Upload Media
+                  </button>
+                </div>
+              </div>
 
-              {/* Upload Progress */}
-              {Object.keys(uploadProgress).length > 0 && (
+              {/* Async Upload Progress */}
+              {uploadingAssets.length > 0 && (
                 <div className="bg-white rounded-xl border border-[#E5E7EB] p-4">
-                  <h4 className="font-medium text-[#111827] mb-3">Upload Progress</h4>
-                  <div className="space-y-2">
-                    {Object.entries(uploadProgress).map(([fileName, progressData]) => (
-                      <div key={fileName} className="flex items-center gap-3">
-                        <span className="text-sm text-[#6B7280] flex-1 truncate">{fileName}</span>
-                        <div className="flex-1 max-w-xs">
+                  <h4 className="font-medium text-[#111827] mb-3">Uploading Assets</h4>
+                  <div className="space-y-3">
+                    {uploadingAssets.map((asset) => (
+                      <div key={asset.id} className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-lg">
+                        <div className="w-10 h-10 bg-[#6366F1]/10 rounded-lg flex items-center justify-center">
+                          <span className="text-lg">{getAssetTypeIcon(asset.type)}</span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-[#111827]">{asset.name}</span>
+                            <span className="text-xs text-[#6B7280]">{asset.progress}%</span>
+                          </div>
                           <div className="w-full bg-[#E5E7EB] rounded-full h-2">
                             <div 
-                              className={`h-2 rounded-full transition-all duration-300 ${
-                                progressData.status === 'error' ? 'bg-red-500' : 
-                                progressData.status === 'complete' ? 'bg-green-500' : 'bg-[#6366F1]'
-                              }`}
-                              style={{ width: `${Math.max(0, progressData.progress)}%` }}
+                              className="h-2 rounded-full bg-[#6366F1] transition-all duration-300"
+                              style={{ width: `${asset.progress}%` }}
                             ></div>
                           </div>
                         </div>
-                        <span className="text-xs text-[#6B7280] w-12">
-                          {progressData.status === 'error' ? 'Error' : 
-                           progressData.status === 'complete' ? 'Done' : `${progressData.progress}%`}
-                        </span>
+                        <div className="w-4 h-4 border-2 border-[#6366F1]/30 border-t-[#6366F1] rounded-full animate-spin"></div>
                       </div>
                     ))}
                   </div>
@@ -1223,6 +1343,7 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
                     <div
                       key={asset.id}
                       onClick={() => handleAssetClick(asset)}
+                      onContextMenu={(e) => handleAssetRightClick(e, asset)}
                       className="group bg-white rounded-xl border border-[#E5E7EB] overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
                     >
                       {/* Media Preview */}
@@ -1275,6 +1396,48 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
                         <h4 className="font-semibold text-[#111827] mb-1 group-hover:text-[#6366F1] transition-colors">
                           {asset.name}
                         </h4>
+                        
+                        {/* IP Status and Protection */}
+                        <div className="mb-2 flex items-center justify-between">
+                          <IPStatusBadge
+                            storyProtocol={{
+                              status: asset.ipStatus === 'REGISTERED' ? 'registered' : 
+                                     asset.ipStatus === 'PENDING' ? 'pending' : undefined,
+                              ipId: asset.ipId,
+                              tokenId: asset.onChainId || undefined
+                            }}
+                            onRegister={() => handleRegisterAsIP(asset)}
+                            size="sm"
+                            showActions={false}
+                          />
+                          
+                          {/* IP Protection Action Buttons */}
+                          {asset.ipStatus !== 'REGISTERED' && (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRegisterAsIP(asset);
+                                }}
+                                className="text-xs text-[#6366F1] border border-[#6366F1] px-2 py-1 rounded-md hover:bg-[#6366F1]/10 transition-colors"
+                                title="Quick Register"
+                              >
+                                Quick
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEnhancedIPRegistration(asset);
+                                }}
+                                className="text-xs bg-[#6366F1] text-white px-2 py-1 rounded-md hover:bg-[#5B5BD6] transition-colors"
+                                title="Enhanced IP Protection"
+                              >
+                                🛡️ Protect
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        
                         <div className="flex items-center justify-between text-sm text-[#6B7280]">
                           <span>
                             {asset.fileSize && formatFileSize(asset.fileSize)}
@@ -1318,6 +1481,39 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
         isOpen={viewMode === 'preview'}
         onClose={() => setViewMode('assets')}
       />
+
+      {/* IP Registration Dialog */}
+      <IPRegistrationDialog
+        open={ipRegistrationOpen}
+        onClose={handleIPRegistrationClose}
+        asset={selectedAssetForIP}
+        onSuccess={handleIPRegistrationSuccess}
+      />
+
+      {/* Asset Upload Flow Modal */}
+      {showUploadFlow && selectedStoryworld && (
+        <AssetUploadFlow
+          isOpen={showUploadFlow}
+          onClose={() => setShowUploadFlow(false)}
+          onSuccess={handleUploadSuccess}
+          onUploadStart={handleUploadStart}
+          storyworld={selectedStoryworld}
+        />
+      )}
+
+      {/* Enhanced IP Registration Flow Modal */}
+      {showEnhancedIPFlow && ipRegistrationAsset && selectedStoryworld && (
+        <EnhancedIPRegistrationFlow
+          isOpen={showEnhancedIPFlow}
+          onClose={() => {
+            setShowEnhancedIPFlow(false);
+            setIPRegistrationAsset(null);
+          }}
+          onSuccess={handleEnhancedIPRegistrationSuccess}
+          asset={ipRegistrationAsset}
+          storyworld={selectedStoryworld}
+        />
+      )}
     </div>
   );
 };

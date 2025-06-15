@@ -18,9 +18,12 @@ export interface StoryProtocolData {
   txHash: string; // Registration transaction hash
   registeredAt: Date;
   
-  // IPFS metadata
-  metadataIpfsHash: string; // IPFS hash for metadata
-  mediaIpfsHash?: string; // IPFS hash for media file
+  // Metadata storage (Firebase Storage URLs)
+  metadataUrl?: string; // Firebase Storage URL for IP metadata
+  nftMetadataUrl?: string; // Firebase Storage URL for NFT metadata
+  metadataIpfsHash?: string; // Legacy IPFS hash for metadata (optional)
+  mediaIpfsHash?: string; // IPFS hash for media file (optional)
+  pilTemplate?: string; // PIL template used for registration
   
   // License terms (from PIL)
   licenseTerms: {

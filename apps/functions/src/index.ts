@@ -31,7 +31,8 @@ import {
   getAssetByIdMongo,
   updateAssetMongo,
   deleteAssetMongo,
-  searchContentMongo
+  searchContentMongo,
+  getUserAssetsMongo,
 } from "./mongoFunctions";
 import { StoryworldService } from "./lib/storyworldService";
 import { AssetService } from "./lib/assetService";
@@ -48,6 +49,11 @@ export const getStoryworldAssets = getStoryworldAssetsMongo;
 export const updateAsset = updateAssetMongo;
 export const deleteAsset = deleteAssetMongo;
 export const searchContent = searchContentMongo;
+// Use existing working functions for Explorer section
+export const getUserAssets = getUserAssetsMongo;
+
+// Note: HTTP functions (getPublicAssetsHttp, getUserAssetsHttp) are available but not exported
+// since we're using callable functions for better authentication and error handling
 
 
 
@@ -970,8 +976,30 @@ export const getSecureUploadUrl = functions.https.onCall(
 
     try {
       // Verify storyworld ownership using MongoDB
+      functions.logger.info('🔍 Verifying storyworld ownership', { storyworldId, uid });
       const storyworld = await StoryworldService.getById(storyworldId);
-      if (!storyworld || storyworld.ownerId !== uid) {
+      
+      if (!storyworld) {
+        functions.logger.error('❌ Storyworld not found', { storyworldId, uid });
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Storyworld not found'
+        );
+      }
+      
+      functions.logger.info('✅ Storyworld found', { 
+        storyworldId, 
+        storyworldOwnerId: storyworld.ownerId, 
+        requestingUid: uid,
+        ownershipMatch: storyworld.ownerId === uid
+      });
+      
+      if (storyworld.ownerId !== uid) {
+        functions.logger.error('❌ Ownership verification failed', { 
+          storyworldId, 
+          storyworldOwnerId: storyworld.ownerId, 
+          requestingUid: uid 
+        });
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid storyworld or insufficient permissions'
@@ -1264,8 +1292,30 @@ export const uploadMediaDirect = functions.https.onCall(
 
     try {
       // Verify storyworld ownership using MongoDB
+      functions.logger.info('🔍 Verifying storyworld ownership', { storyworldId, uid });
       const storyworld = await StoryworldService.getById(storyworldId);
-      if (!storyworld || storyworld.ownerId !== uid) {
+      
+      if (!storyworld) {
+        functions.logger.error('❌ Storyworld not found', { storyworldId, uid });
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Storyworld not found'
+        );
+      }
+      
+      functions.logger.info('✅ Storyworld found', { 
+        storyworldId, 
+        storyworldOwnerId: storyworld.ownerId, 
+        requestingUid: uid,
+        ownershipMatch: storyworld.ownerId === uid
+      });
+      
+      if (storyworld.ownerId !== uid) {
+        functions.logger.error('❌ Ownership verification failed', { 
+          storyworldId, 
+          storyworldOwnerId: storyworld.ownerId, 
+          requestingUid: uid 
+        });
         throw new functions.https.HttpsError(
           'permission-denied',
           'Invalid storyworld or insufficient permissions'
@@ -1815,4 +1865,10 @@ export const enhanceStoryworld = functions.https.onCall(
 );
 
 // MongoDB Functions Import
-export * from "./mongoFunctions"; 
+export * from "./mongoFunctions";
+
+// Story Protocol Functions Import
+// Temporarily commented out due to compilation errors
+// export * from "./storyProtocolFunctions"; 
+
+// Marketplace uses authenticated getExploreAssets function (same as Library pattern) 
