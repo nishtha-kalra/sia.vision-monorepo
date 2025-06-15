@@ -95,7 +95,7 @@ pnpm run type-check
 
 ## 🚀 Live Demo
 
-**Website**: [https://sia.vision.com](https://sia.vision.com)
+**Website**: [https://sia.vision](https://sia.vision)
 
 ### User Journey
 1. **Sign up with Google** - Fast social authentication
