@@ -44,7 +44,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 ### 1. **Regenerate SendGrid API Key**
 ```bash
 # 1. Go to SendGrid → Settings → API Keys
-# 2. Delete current key: SG.0Wd17HAZSwCKYO8KnYb9Wg...
+# 2. Delete current key: 
 # 3. Create new key with "Mail Send" permissions only
 # 4. Update Firebase config:
 firebase functions:config:set sendgrid.api_key="NEW_SECURE_KEY"

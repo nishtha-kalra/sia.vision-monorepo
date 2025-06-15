@@ -1,7 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFunctions, Functions } from 'firebase/functions';
+import { getFunctions, Functions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -35,6 +35,12 @@ if (typeof window !== 'undefined' && isFirebaseConfigValid) {
   db = getFirestore(app);
   auth = getAuth(app);
   functionsInstance = getFunctions(app);
+  
+  // Use production Firebase Functions (no emulator)
+  console.log('🔥 Firebase initialized successfully');
+  console.log('🔧 Functions instance:', functionsInstance);
+  console.log('🌍 Functions region:', functionsInstance.region);
+  console.log('🔗 Functions URL:', functionsInstance.customDomain || `https://${functionsInstance.region}-${firebaseConfig.projectId}.cloudfunctions.net`);
 }
 
 export { db, auth, functionsInstance as functions };

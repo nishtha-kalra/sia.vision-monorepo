@@ -10,6 +10,9 @@ import { StoryworldHub } from './StoryworldHub';
 import { Explore } from './Explore';
 import { OnboardingFlow } from './OnboardingFlow';
 import { StoryworldConfirmationModal } from './StoryworldConfirmationModal';
+
+
+
 import { Asset, Project, AssetContent } from './types';
 import { Asset as BackendAsset, Storyworld } from '@/types';
 import { useFirebaseFunctions } from '@/hooks/useFirebaseFunctions';
@@ -436,7 +439,7 @@ export const DashboardContainer = () => {
       case 'library':
         // Use the new integrated library for testing SIA functionality
         return (
-          <div className="p-6">
+          <div className="p-6 h-full overflow-y-auto">
             <div className="mb-4">
               <div className="bg-[#F0F4FF] border border-[#C7D2FE] rounded-xl p-4">
                 <div className="flex items-center gap-2">
@@ -519,6 +522,8 @@ export const DashboardContainer = () => {
       
       case 'profile':
         return <Profile />;
+        
+
         
       default:
         return (

@@ -7,6 +7,8 @@ import {
   CreateAssetResponse
 } from "./types";
 
+// Removed cors import since we no longer have HTTP functions
+
 /**
  * Health check function to test MongoDB connectivity
  */
@@ -635,4 +637,71 @@ export const getAssetByIdMongo = functions.https.onCall(
       );
     }
   }
-); 
+);
+
+/**
+ * Get user's own assets - MongoDB version (used by Library section)
+ */
+export const getUserAssetsMongo = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const uid = context.auth.uid;
+    const { limit = 20, skip = 0, type } = data;
+
+    try {
+      const assets = await AssetService.getByOwnerId(uid);
+      
+      let filteredAssets = assets;
+      if (type && type !== 'all') {
+        filteredAssets = assets.filter(asset => asset.type === type.toUpperCase());
+      }
+      
+      const paginatedAssets = filteredAssets
+        .slice(skip, skip + limit)
+        .map(asset => ({
+          id: asset._id,
+          ownerId: asset.ownerId,
+          name: asset.name,
+          type: asset.type,
+          content: asset.content,
+          status: asset.status,
+          ipStatus: asset.ipStatus,
+          createdAt: { seconds: Math.floor(asset.createdAt.getTime() / 1000) },
+          updatedAt: { seconds: Math.floor(asset.updatedAt.getTime() / 1000) },
+          mediaUrl: asset.media?.url,
+          views: asset.views || 0,
+          likes: asset.likes || 0,
+          tags: asset.tags || [],
+          description: asset.description
+        }));
+      
+      functions.logger.info('👤 Retrieved user assets', {
+        userId: uid,
+        count: paginatedAssets.length,
+        total: filteredAssets.length,
+      });
+
+      return {
+        success: true,
+        assets: paginatedAssets,
+        total: filteredAssets.length
+      };
+    } catch (error) {
+      functions.logger.error('❌ Failed to get user assets:', error);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to get user assets'
+      );
+    }
+  }
+);
+
+
+
+ 

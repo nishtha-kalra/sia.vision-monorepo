@@ -106,6 +106,13 @@ export const useFirebaseFunctions = () => {
     return functions;
   };
 
+  // Generic function caller
+  const callFunction = useCallback(async (functionName: string, data: any): Promise<any> => {
+    const fn = httpsCallable(validateFunctions(), functionName);
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
   // Storyworld Functions
   const createStoryworld = useCallback(async (data: {
     name: string;
@@ -191,6 +198,22 @@ export const useFirebaseFunctions = () => {
     const fn = httpsCallable(validateFunctions(), 'deleteAsset');
     const result = await fn(data);
     return result.data as { success: boolean };
+  }, []);
+
+  const updateAsset = useCallback(async (data: {
+    assetId: string;
+    name?: string;
+    description?: string;
+    content?: any;
+    tags?: string[];
+  }): Promise<{ success: boolean; asset?: Asset }> => {
+    const fn = httpsCallable(validateFunctions(), 'updateAsset');
+    
+    // Extract assetId and create updates object
+    const { assetId, ...updates } = data;
+    const result = await fn({ assetId, updates });
+    
+    return result.data as { success: boolean; asset?: Asset };
   }, []);
 
   // Media Upload Functions
@@ -423,7 +446,72 @@ export const useFirebaseFunctions = () => {
     return result.data as StoryworldEnhancementResponse;
   }, []);
 
+  // Story Protocol Functions
+  const getPILTemplates = useCallback(async (): Promise<{
+    success: boolean;
+    templates: Array<{
+      id: string;
+      name: string;
+      description: string;
+      mintingFee: string;
+      currency: string;
+      features: string[];
+    }>;
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'getPILTemplates');
+    const result = await fn({});
+    return result.data as any;
+  }, []);
+
+  const registerAssetAsIP = useCallback(async (data: {
+    assetId: string;
+    pilTemplate: string;
+    customMetadata?: {
+      title: string;
+      description: string;
+      creatorName: string;
+      attributes: Array<{ trait_type: string; value: string }>;
+    };
+  }): Promise<{
+    success: boolean;
+    ipId?: string;
+    tokenId?: string;
+    txHash?: string;
+    pilTemplate?: string;
+    asset?: any;
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'registerAssetAsIP');
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
+  const generateIPMetadata = useCallback(async (data: {
+    assetId: string;
+    prompt?: string;
+    context?: string;
+  }): Promise<{
+    success: boolean;
+    metadata?: {
+      title: string;
+      description: string;
+      attributes: Array<{ trait_type: string; value: string }>;
+      suggestedPIL: string;
+      pilReasoning: string;
+      confidence: number;
+    };
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'generateIPMetadata');
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
   return {
+    // Generic function caller
+    callFunction,
+    
     // Storyworld functions
     createStoryworld,
     getUserStoryworlds,
@@ -435,6 +523,7 @@ export const useFirebaseFunctions = () => {
     getStoryworldAssets,
     getAssetById,
     deleteAsset,
+    updateAsset,
     
     // Media functions - server-side controlled
     uploadMediaDirect,
@@ -444,6 +533,11 @@ export const useFirebaseFunctions = () => {
     // AI Assistant functions
     processCreativePrompt,
     enhanceStoryworld,
+    
+    // Story Protocol functions
+    getPILTemplates,
+    registerAssetAsIP,
+    generateIPMetadata,
     
     // State
     uploading,

@@ -79,6 +79,14 @@ export interface Storyworld {
   assetCount?: number;
   views?: number;
   tags?: string[];
+  
+  // AI-generated fields (optional)
+  genre?: string;
+  themes?: string[];
+  
+  // IP status
+  ipStatus?: IPStatus;
+  status?: AssetStatus;
 }
 
 // Frontend-specific interfaces

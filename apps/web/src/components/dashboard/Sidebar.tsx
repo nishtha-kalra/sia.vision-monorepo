@@ -100,6 +100,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
               <div className="text-xs opacity-75 mt-0.5">Community & Discover</div>
             </div>
           </button>
+
+
         </div>
       </div>
       <div className="p-4 border-t border-[#E5E7EB]">
