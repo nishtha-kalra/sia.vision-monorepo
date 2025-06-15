@@ -106,6 +106,13 @@ export const useFirebaseFunctions = () => {
     return functions;
   };
 
+  // Generic function caller
+  const callFunction = useCallback(async (functionName: string, data: any): Promise<any> => {
+    const fn = httpsCallable(validateFunctions(), functionName);
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
   // Storyworld Functions
   const createStoryworld = useCallback(async (data: {
     name: string;
@@ -191,6 +198,22 @@ export const useFirebaseFunctions = () => {
     const fn = httpsCallable(validateFunctions(), 'deleteAsset');
     const result = await fn(data);
     return result.data as { success: boolean };
+  }, []);
+
+  const updateAsset = useCallback(async (data: {
+    assetId: string;
+    name?: string;
+    description?: string;
+    content?: any;
+    tags?: string[];
+  }): Promise<{ success: boolean; asset?: Asset }> => {
+    const fn = httpsCallable(validateFunctions(), 'updateAsset');
+    
+    // Extract assetId and create updates object
+    const { assetId, ...updates } = data;
+    const result = await fn({ assetId, updates });
+    
+    return result.data as { success: boolean; asset?: Asset };
   }, []);
 
   // Media Upload Functions
@@ -486,6 +509,9 @@ export const useFirebaseFunctions = () => {
   }, []);
 
   return {
+    // Generic function caller
+    callFunction,
+    
     // Storyworld functions
     createStoryworld,
     getUserStoryworlds,
@@ -497,6 +523,7 @@ export const useFirebaseFunctions = () => {
     getStoryworldAssets,
     getAssetById,
     deleteAsset,
+    updateAsset,
     
     // Media functions - server-side controlled
     uploadMediaDirect,

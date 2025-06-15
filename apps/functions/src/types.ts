@@ -66,6 +66,13 @@ export interface MongoAsset {
   // Story Protocol fields (optional until registered)
   storyProtocol?: StoryProtocolData;
   
+  // Story Protocol direct fields for compatibility
+  ipId?: string;
+  onChainId?: string;
+  pilTemplate?: string;
+  ipMetadataUrl?: string;
+  ipRegisteredAt?: Date;
+  
   // Analytics
   views?: number;
   likes?: number;
@@ -87,6 +94,8 @@ export interface MongoStoryworld {
   coverImageUrl?: string | null;
   visibility: 'PRIVATE' | 'PUBLIC';
   tags?: string[];
+  genre?: string;
+  themes?: string[];
   stats?: {
     totalAssets: number;
     characters: number;

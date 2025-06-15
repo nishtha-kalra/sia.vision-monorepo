@@ -6,7 +6,7 @@ import { useUser } from '@/hooks/useUser';
 import IPRegistrationDialog from '@/components/story-protocol/IPRegistrationDialog';
 import IPStatusBadge from '@/components/story-protocol/IPStatusBadge';
 import AssetUploadFlow from './AssetUploadFlow';
-import EnhancedIPRegistrationFlow from '../story-protocol/EnhancedIPRegistrationFlow';
+import { StreamlinedIPFlow } from '../story-protocol/StreamlinedIPFlow';
 
 interface LibraryIntegratedProps {
   onAssetSelect: (asset: Asset) => void;
@@ -1412,7 +1412,7 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
                           />
                           
                           {/* IP Protection Action Buttons */}
-                          {asset.ipStatus !== 'REGISTERED' && (
+                          {asset.ipStatus === 'UNREGISTERED' && (
                             <div className="flex gap-1">
                               <button
                                 onClick={(e) => {
@@ -1434,6 +1434,15 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
                               >
                                 🛡️ Protect
                               </button>
+                            </div>
+                          )}
+
+                          {/* Show status for non-unregistered assets */}
+                          {asset.ipStatus !== 'UNREGISTERED' && (
+                            <div className="text-xs text-[#6B7280]">
+                              {asset.ipStatus === 'PENDING' && '⏳ Registration in progress'}
+                              {asset.ipStatus === 'REGISTERED' && '✅ IP Protected'}
+                              {asset.ipStatus === 'FAILED' && '❌ Registration failed'}
                             </div>
                           )}
                         </div>
@@ -1502,16 +1511,14 @@ const LibraryIntegrated: React.FC<LibraryIntegratedProps> = ({
       )}
 
       {/* Enhanced IP Registration Flow Modal */}
-      {showEnhancedIPFlow && ipRegistrationAsset && selectedStoryworld && (
-        <EnhancedIPRegistrationFlow
-          isOpen={showEnhancedIPFlow}
+      {showEnhancedIPFlow && ipRegistrationAsset && (
+        <StreamlinedIPFlow
+          asset={ipRegistrationAsset}
           onClose={() => {
             setShowEnhancedIPFlow(false);
             setIPRegistrationAsset(null);
           }}
           onSuccess={handleEnhancedIPRegistrationSuccess}
-          asset={ipRegistrationAsset}
-          storyworld={selectedStoryworld}
         />
       )}
     </div>

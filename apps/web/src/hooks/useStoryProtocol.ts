@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import { StoryProtocolData } from '@/components/story-protocol';
+import { useFirebaseFunctions } from './useFirebaseFunctions';
 
 interface UseStoryProtocolOptions {
   onSuccess?: (result: any) => void;
@@ -33,6 +34,19 @@ interface MetadataGenerationParams {
   context?: string;
 }
 
+export interface StoryProtocolResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+  txHash?: string;
+  ipId?: string;
+  licenseId?: string;
+  metadata?: any;
+  registrationId?: string;
+  status?: string;
+  registration?: any;
+}
+
 export const useStoryProtocol = (options: UseStoryProtocolOptions = {}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,15 +54,29 @@ export const useStoryProtocol = (options: UseStoryProtocolOptions = {}) => {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   
   const { onSuccess, onError } = options;
+  const { callFunction } = useFirebaseFunctions();
 
-  const callFunction = useCallback(async (functionName: string, data: any): Promise<any> => {
-    if (!functions) {
-      throw new Error('Firebase Functions not initialized');
+  const handleCall = async (functionName: string, data: any): Promise<StoryProtocolResult> => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await callFunction(functionName, data);
+      
+      if (result.success) {
+        return result;
+      } else {
+        setError(result.error || 'Unknown error occurred');
+        return { success: false, error: result.error };
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to call Story Protocol function';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
-    const fn = httpsCallable(functions, functionName);
-    const result = await fn(data);
-    return result.data as any;
-  }, []);
+  };
 
   // Load PIL templates
   const loadTemplates = useCallback(async () => {
@@ -120,6 +148,52 @@ export const useStoryProtocol = (options: UseStoryProtocolOptions = {}) => {
       setLoading(false);
     }
   }, [callFunction, onError]);
+
+  // NEW STREAMLINED FUNCTIONS
+
+  // Create IP registration record
+  const createIPRegistration = useCallback(async (params: {
+    assetId: string;
+    pilTemplate: string;
+    customMetadata?: any;
+    aiPrompt?: string;
+  }) => {
+    return handleCall('createIPRegistration', params);
+  }, [handleCall]);
+
+  // Process IP registration
+  const processIPRegistration = useCallback(async (params: {
+    registrationId: string;
+  }) => {
+    return handleCall('processIPRegistration', params);
+  }, [handleCall]);
+
+  // Get IP registration status
+  const getIPRegistrationStatus = useCallback(async (params: {
+    registrationId?: string;
+    assetId?: string;
+  }) => {
+    return handleCall('getIPRegistrationStatus', params);
+  }, [handleCall]);
+
+  // Generate IP metadata with AI
+  const generateIPMetadata = useCallback(async (params: {
+    assetId: string;
+    aiPrompt: string;
+    customAttributes?: Array<{ trait_type: string; value: string }>;
+  }) => {
+    return handleCall('generateIPMetadata', params);
+  }, [handleCall]);
+
+  // Get user's IP registrations
+  const getUserIPRegistrations = useCallback(async (params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+    storyworldId?: string;
+  }) => {
+    return handleCall('getUserIPRegistrations', params || {});
+  }, [handleCall]);
 
   // Get IP asset information
   const getIPAssetInfo = useCallback(async (assetId: string) => {
@@ -215,6 +289,13 @@ export const useStoryProtocol = (options: UseStoryProtocolOptions = {}) => {
     generateMetadata,
     getIPAssetInfo,
     batchRegisterAssets,
+    
+    // NEW STREAMLINED ACTIONS
+    createIPRegistration,
+    processIPRegistration,
+    getIPRegistrationStatus,
+    generateIPMetadata,
+    getUserIPRegistrations,
     
     // Helpers
     isAssetRegistered,

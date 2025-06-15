@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Asset, StoryWorld } from './types';
 import AssetUploadFlow from './AssetUploadFlow';
-import EnhancedIPRegistrationFlow from '../story-protocol/EnhancedIPRegistrationFlow';
+import { StreamlinedIPFlow } from '../story-protocol/StreamlinedIPFlow';
 import { useFirebaseFunctions } from '@/hooks/useFirebaseFunctions';
 import { useUserAssets } from '@/hooks/useAssets';
 
@@ -571,11 +571,9 @@ export const Library = ({
       )}
 
       {/* Enhanced IP Registration Flow */}
-      {showEnhancedIPFlow && ipRegistrationAsset && selectedProjectForUpload && (
-        <EnhancedIPRegistrationFlow
+      {showEnhancedIPFlow && ipRegistrationAsset && (
+        <StreamlinedIPFlow
           asset={ipRegistrationAsset}
-          storyworld={selectedProjectForUpload as any} // Convert Project to Storyworld
-          isOpen={showEnhancedIPFlow}
           onClose={() => {
             setShowEnhancedIPFlow(false);
             setIPRegistrationAsset(null);

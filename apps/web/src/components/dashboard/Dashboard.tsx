@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { StoryPromptInput } from './StoryPromptInput';
+import { SimpleIPProtectionButton } from './SimpleIPProtectionButton';
 import { Asset } from './types';
 
 interface DashboardProps {
@@ -484,6 +485,32 @@ export const Dashboard = ({
               </div>
             </div>
           )}
+
+          {/* IP Protection Demo */}
+          <div className="mb-12">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-[#111827] mb-3">
+                Try IP Protection (Demo)
+              </h3>
+              <p className="text-[#6B7280] max-w-2xl mx-auto">
+                Test our Story Protocol integration with your custody wallet. 
+                This demo shows how your assets can be protected on-chain with real blockchain transactions.
+              </p>
+            </div>
+            
+            <div className="max-w-2xl mx-auto">
+              <SimpleIPProtectionButton
+                assetId="demo-asset-001"
+                assetTitle="My Creative Asset"
+                onSuccess={(result) => {
+                  console.log('IP Protection successful:', result);
+                }}
+                onError={(error) => {
+                  console.error('IP Protection failed:', error);
+                }}
+              />
+            </div>
+          </div>
 
           {/* IP Protection Journey */}
           <div className="bg-gradient-to-r from-[#6366F1]/10 via-[#8B5CF6]/10 to-[#EC4899]/10 rounded-3xl border border-[#6366F1]/20 p-8">

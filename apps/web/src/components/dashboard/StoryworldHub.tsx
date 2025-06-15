@@ -394,143 +394,110 @@ export const StoryworldHub = ({
   onEditProject, 
   onBack 
 }: StoryworldHubProps) => {
-  const [activeAssetType, setActiveAssetType] = useState<'all' | 'characters' | 'lore' | 'media'>('all');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const handleStorylineNodeClick = (node: StorylineNode) => {
-    console.log('Opening storyline node:', node);
-    onCreateAsset('STORYLINE');
+    console.log('Clicked storyline node:', node);
+    // onAssetSelect with a dummy asset
+    onAssetSelect({ id: node.id, type: 'STORYLINE' } as Asset);
   };
 
   const handleCharacterClick = (character: CharacterPreview) => {
-    console.log('Opening character:', character);
-    onCreateAsset('CHARACTER');
+    console.log('Clicked character:', character);
+    // onAssetSelect with a dummy asset
+    onAssetSelect({ id: character.id, type: 'CHARACTER' } as Asset);
   };
 
   const handleLoreClick = (lore: LoreEntry) => {
-    console.log('Opening lore:', lore);
-    onCreateAsset('LORE');
+    console.log('Clicked lore entry:', lore);
+    // onAssetSelect with a dummy asset
+    onAssetSelect({ id: lore.id, type: 'LORE' } as Asset);
   };
 
   return (
-    <div className="h-full bg-gradient-to-br from-gray-50 to-white overflow-y-auto">
+    <div className="h-full overflow-y-auto">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 text-[#6B7280] hover:text-[#111827] transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="text-sm">Back to Library</span>
-            </button>
-            <div className="w-px h-6 bg-gray-300"></div>
-            <div className="flex items-center gap-3">
-              {project.coverImageUrl ? (
-                <img
-                  src={project.coverImageUrl}
-                  alt={project.name}
-                  className="w-12 h-12 rounded-xl object-cover"
-                />
-              ) : (
-                <div className="w-12 h-12 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-xl flex items-center justify-center">
-                  <span className="text-2xl text-white/80">📚</span>
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-[#111827]">{project.name}</h1>
-                <p className="text-[#6B7280]">{project.description}</p>
-              </div>
+      <div className="p-6 bg-white border-b border-[#E5E7EB] flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="p-2 rounded-md hover:bg-[#F3F4F6] transition-colors"
+          >
+            <svg className="w-5 h-5 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-xl flex items-center justify-center text-3xl">
+              📚
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-[#111827]">{project.name}</h1>
+              <p className="text-[#6B7280] text-sm">Last updated: {project.updatedAt.toLocaleDateString()}</p>
             </div>
           </div>
-
-          {/* Action buttons and stats */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={onEditProject}
-                className="px-4 py-2 text-[#6B7280] hover:text-[#111827] border border-[#E5E7EB] rounded-lg hover:bg-[#F9FAFB] transition-colors text-sm font-medium"
-              >
-                Edit Details
-              </button>
-              <button className="px-4 py-2 text-[#6B7280] hover:text-[#111827] border border-[#E5E7EB] rounded-lg hover:bg-[#F9FAFB] transition-colors text-sm font-medium">
-                Share Storyworld
-              </button>
-              <div className="w-px h-6 bg-gray-300"></div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                project.visibility === 'PUBLIC'
-                  ? 'bg-[#10B981] text-white'
-                  : 'bg-[#111827]/10 text-[#111827]'
-              }`}>
-                {project.visibility === 'PUBLIC' ? '🌍 Public' : '🔒 Private'}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-6">
-              {/* Stats */}
-              <div className="flex items-center gap-6 text-sm text-[#6B7280]">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-[#111827]">{project.stats.totalAssets}</div>
-                  <div>Total Assets</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-[#111827]">{project.stats.characters}</div>
-                  <div>Characters</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-[#111827]">{project.stats.storylines}</div>
-                  <div>Storylines</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-[#111827]">1</div>
-                  <div>Collaborators</div>
-                </div>
-              </div>
-              
-              <button
-                onClick={() => onCreateAsset('STORYLINE')}
-                className="flex items-center gap-2 px-6 py-3 bg-[#6366F1] text-white rounded-xl hover:bg-[#5B5BD6] transition-colors font-medium shadow-lg"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Create New Asset
-              </button>
-            </div>
-          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={onEditProject}
+            className="px-4 py-2 bg-[#F3F4F6] text-[#374151] rounded-lg hover:bg-[#E5E7EB] transition-colors text-sm font-medium"
+          >
+            Settings
+          </button>
+          <button 
+            onClick={() => onCreateAsset('STORYLINE')}
+            className="px-4 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#5B5BD6] transition-colors text-sm font-medium flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Create
+          </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Storyline Map */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-[#111827]">Story Structure & Flow</h2>
-          <StorylineMap nodes={sampleStorylineNodes} onNodeClick={handleStorylineNodeClick} />
-        </div>
-
-        {/* Character Carousel */}
-        <CharacterCarousel characters={sampleCharacters} onCharacterClick={handleCharacterClick} />
-
-        {/* Lore Library */}
-        <LoreLibrary loreEntries={sampleLoreEntries} onLoreClick={handleLoreClick} />
-
-        {/* Media Gallery Placeholder */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-[#111827]">Media Gallery</h3>
-            <button className="text-[#6366F1] hover:text-[#5B5BD6] text-sm font-medium">
-              View All Media
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="aspect-square bg-[#F3F4F6] rounded-xl border-2 border-dashed border-[#D1D5DB] flex items-center justify-center">
-                <span className="text-[#6B7280] text-2xl">🎨</span>
+      {/* Main Content Area */}
+      <div className="p-6">
+        <div className="space-y-8">
+          {/* Overview Section */}
+          <div>
+            <h2 className="text-xl font-bold text-[#111827] mb-4">Overview</h2>
+            <p className="text-[#6B7280] mb-6">{project.description}</p>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-white rounded-xl border border-[#E5E7EB]">
+                <h4 className="font-semibold text-[#111827]">Total Assets</h4>
+                <p className="text-3xl font-bold text-[#6366F1]">{project.stats.totalAssets}</p>
               </div>
-            ))}
+              <div className="p-4 bg-white rounded-xl border border-[#E5E7EB]">
+                <h4 className="font-semibold text-[#111827]">Characters</h4>
+                <p className="text-3xl font-bold text-[#6366F1]">{project.stats.characters}</p>
+              </div>
+              <div className="p-4 bg-white rounded-xl border border-[#E5E7EB]">
+                <h4 className="font-semibold text-[#111827]">Storylines</h4>
+                <p className="text-3xl font-bold text-[#6366F1]">{project.stats.storylines}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Storyline Section */}
+          <div>
+            <h2 className="text-xl font-bold text-[#111827] mb-4">Storyline Map</h2>
+            <StorylineMap nodes={sampleStorylineNodes} onNodeClick={handleStorylineNodeClick} />
+          </div>
+
+          {/* Characters Section */}
+          <div>
+            <h2 className="text-xl font-bold text-[#111827] mb-4">Characters</h2>
+            <CharacterCarousel characters={sampleCharacters} onCharacterClick={handleCharacterClick} />
+          </div>
+
+          {/* Lore Section */}
+          <div>
+            <h2 className="text-xl font-bold text-[#111827] mb-4">Lore Library</h2>
+            <LoreLibrary loreEntries={sampleLoreEntries} onLoreClick={handleLoreClick} />
           </div>
         </div>
       </div>
