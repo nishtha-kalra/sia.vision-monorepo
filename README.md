@@ -504,7 +504,15 @@ Conversion Rate: 65% (users who start IP protection complete it) ✨ NEW
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**All Rights Reserved** - This project is proprietary and confidential.
+
+Copyright © 2054 SIA Vision. All rights reserved.
+
+This software and associated documentation files (the "Software") are the exclusive property of SIA Vision. No part of this Software may be reproduced, distributed, transmitted, displayed, published, or broadcast in any form or by any means, electronic or mechanical, including but not limited to photocopying, recording, or other electronic or mechanical methods, without the prior written permission of SIA Vision.
+
+**Unauthorized use, reproduction, or distribution of this Software is strictly prohibited and may result in severe civil and criminal penalties.**
+
+For licensing inquiries, please contact: [connect@sia.vision.com](mailto:connect@sia.vision.com)
 
 ## 🚀 Built With
 
