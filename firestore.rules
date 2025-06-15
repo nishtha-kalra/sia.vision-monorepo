@@ -6,27 +6,16 @@ service cloud.firestore {
     function hasStoryworldPermission(storyworldId, userId, minimumRole) {
       // Check if user is storyworld owner
       let storyworld = get(/databases/$(database)/documents/storyworlds/$(storyworldId));
-      if (storyworld.data.ownerId == userId) {
-        return true;
-      }
-      
-      // Check explicit permissions
-      let permissions = get(/databases/$(database)/documents/storyworld-permissions/$(storyworldId + '_' + userId));
-      if (permissions != null) {
-        let userRole = permissions.data.role;
-        return (minimumRole == 'VIEWER' && userRole in ['VIEWER', 'CONTRIBUTOR', 'EDITOR', 'OWNER']) ||
-               (minimumRole == 'CONTRIBUTOR' && userRole in ['CONTRIBUTOR', 'EDITOR', 'OWNER']) ||
-               (minimumRole == 'EDITOR' && userRole in ['EDITOR', 'OWNER']) ||
-               (minimumRole == 'OWNER' && userRole == 'OWNER');
-      }
-      
-      return false;
+      return storyworld.data.ownerId == userId ||
+        (exists(/databases/$(database)/documents/storyworld-permissions/$(storyworldId + '_' + userId)) &&
+         (minimumRole == 'VIEWER' || minimumRole == 'CONTRIBUTOR' || minimumRole == 'EDITOR' || minimumRole == 'OWNER'));
     }
     
     function hasStoryworldAccess(assetId, userId) {
       // Check if user has access to any storyworld that contains this asset
       return exists(/databases/$(database)/documents/asset-storyworld-relations/$(assetId + '_' + userId));
     }
+    
     // Users collection - users can read/write their own data
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;

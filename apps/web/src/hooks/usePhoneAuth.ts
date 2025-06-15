@@ -68,7 +68,7 @@ export const usePhoneAuth = () => {
       `;
 
       // Create invisible reCAPTCHA verifier with proper configuration
-      const recaptchaVerifier = new RecaptchaVerifier(auth as any, 'recaptcha-container', {
+      const recaptchaVerifier = new (RecaptchaVerifier as any)(auth, 'recaptcha-container', {
         size: 'invisible',
         callback: (response: any) => {
           // reCAPTCHA solved - no popup should appear

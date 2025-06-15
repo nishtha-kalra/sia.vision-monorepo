@@ -130,25 +130,14 @@ export const SimpleIPProtectionButton: React.FC<SimpleIPProtectionButtonProps> =
 
         <button
           onClick={executeIPProtection}
-          disabled={isProcessing}
-          className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
-            isProcessing
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700'
-          }`}
+          disabled={true}
+          className="w-full px-4 py-2 rounded-lg font-medium transition-colors bg-gray-100 text-gray-400 cursor-not-allowed"
         >
-          {isProcessing ? (
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
-              Processing IP Protection...
-            </div>
-          ) : (
-            'Protect as IP (Gasless)'
-          )}
+          Protect as IP (Disabled)
         </button>
 
         <div className="mt-2 text-xs text-gray-500 text-center">
-          ⚡ Gas fees sponsored • 🔒 Server-side signing • ⛓️ Story Protocol Aeneid testnet
+          🚫 IP Protection temporarily disabled
         </div>
       </div>
 

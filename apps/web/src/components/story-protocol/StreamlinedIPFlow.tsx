@@ -124,36 +124,21 @@ export const StreamlinedIPFlow: React.FC<StreamlinedIPFlowProps> = ({
   const { updateAsset } = useFirebaseFunctions();
   const [user] = useAuthState();
 
-  // Check for existing IP registration on component mount
+  // Check for existing registration on mount instead of continuous polling
   useEffect(() => {
     const checkExistingRegistration = async () => {
       try {
         const result = await getIPRegistrationStatus({ assetId: asset.id });
         if (result.success && result.registration) {
-          console.log('📋 Found existing IP registration:', result.registration);
-          setRegistration({
-            id: result.registration._id,
-            status: result.registration.status,
-            pilTemplate: result.registration.pilTemplate,
-            customMetadata: result.registration.customMetadata,
-            aiPrompt: result.registration.aiPrompt,
-            statusHistory: result.registration.statusHistory || []
-          });
-
-          // Set the current step based on registration status
+          console.log('Found existing registration:', result.registration);
+          setRegistration(result.registration);
+          
           if (result.registration.status === 'COMPLETED') {
             setCurrentStep('success');
+          } else if (result.registration.status === 'FAILED') {
+            setCurrentStep('confirm');
           } else if (['PENDING', 'GENERATING_METADATA', 'UPLOADING_METADATA', 'REGISTERING_IP'].includes(result.registration.status)) {
             setCurrentStep('processing');
-            setIsProcessing(true);
-            // Start polling for status updates
-            startStatusPolling(result.registration._id);
-          } else if (result.registration.status === 'DRAFT') {
-            // Stay on current step but show that registration exists
-            setSelectedPIL(result.registration.pilTemplate);
-            if (result.registration.customMetadata) {
-              setCustomMetadata(result.registration.customMetadata);
-            }
           }
         }
       } catch (error) {
@@ -164,29 +149,23 @@ export const StreamlinedIPFlow: React.FC<StreamlinedIPFlowProps> = ({
     checkExistingRegistration();
   }, [asset.id, getIPRegistrationStatus]);
 
-  // Poll registration status when processing
-  useEffect(() => {
-    if (registration && ['PENDING', 'GENERATING_METADATA', 'UPLOADING_METADATA', 'REGISTERING_IP'].includes(registration.status)) {
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusResult = await getIPRegistrationStatus({ registrationId: registration.id });
-          if (statusResult.success) {
-            setRegistration(statusResult.registration);
-            
-            if (statusResult.registration.status === 'COMPLETED') {
-              setCurrentStep('success');
-              clearInterval(pollInterval);
-            } else if (statusResult.registration.status === 'FAILED') {
-              setCurrentStep('confirm'); // Go back to confirm step
-              clearInterval(pollInterval);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to poll registration status:', error);
+  // Manual status check function (replaces continuous polling)
+  const checkRegistrationStatus = useCallback(async () => {
+    if (!registration) return;
+    
+    try {
+      const statusResult = await getIPRegistrationStatus({ registrationId: registration.id });
+      if (statusResult.success) {
+        setRegistration(statusResult.registration);
+        
+        if (statusResult.registration.status === 'COMPLETED') {
+          setCurrentStep('success');
+        } else if (statusResult.registration.status === 'FAILED') {
+          setCurrentStep('confirm');
         }
-      }, 2000);
-
-      return () => clearInterval(pollInterval);
+      }
+    } catch (error) {
+      console.error('Failed to check registration status:', error);
     }
   }, [registration, getIPRegistrationStatus]);
 
@@ -340,7 +319,7 @@ Focus on making this asset discoverable and valuable in IP marketplaces.
           }
           
           // Start polling for status updates
-          startStatusPolling(result.registrationId);
+          checkRegistrationStatus();
         }
       } else {
         throw new Error(result.error || 'Failed to create registration');
@@ -357,41 +336,6 @@ Focus on making this asset discoverable and valuable in IP marketplaces.
       
       setIsProcessing(false);
     }
-  };
-
-  // Simple status polling mechanism
-  const startStatusPolling = (registrationId: string) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const statusResult = await getIPRegistrationStatus({ registrationId });
-        if (statusResult.success && statusResult.registration) {
-          const reg = statusResult.registration;
-          setRegistration(prev => prev ? {
-            ...prev,
-            status: reg.status,
-            statusHistory: reg.statusHistory || []
-          } : null);
-
-          // Stop polling if completed or failed
-          if (reg.status === 'COMPLETED' || reg.status === 'FAILED') {
-            clearInterval(pollInterval);
-            setIsProcessing(false);
-            
-            if (reg.status === 'COMPLETED') {
-              setCurrentStep('success');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Failed to poll status:', error);
-      }
-    }, 3000); // Poll every 3 seconds
-
-    // Stop polling after 5 minutes
-    setTimeout(() => {
-      clearInterval(pollInterval);
-      setIsProcessing(false);
-    }, 300000);
   };
 
   const addCustomAttribute = () => {
@@ -949,6 +893,19 @@ Focus on making this asset discoverable and valuable in IP marketplaces.
             </div>
           </div>
         )}
+
+        {/* Manual Refresh Button */}
+        <div className="flex justify-center">
+          <button
+            onClick={checkRegistrationStatus}
+            className="px-6 py-2 bg-[#6366F1] text-white rounded-lg hover:bg-[#5B5BD6] transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Check Status
+          </button>
+        </div>
       </div>
     );
   };
@@ -1059,24 +1016,6 @@ Focus on making this asset discoverable and valuable in IP marketplaces.
           </div>
           <h3 className="text-2xl font-bold text-[#111827] mb-4">IP Asset Protected!</h3>
           <p className="text-[#6B7280] mb-6">Your asset is now protected on Story Protocol</p>
-          <div className="bg-[#F9FAFB] rounded-lg p-4 mb-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-[#374151]">IP ID:</span>
-                <p className="text-[#6B7280] font-mono">{registration.ipId || 'N/A'}</p>
-              </div>
-              <div>
-                <span className="font-medium text-[#374151]">License:</span>
-                <p className="text-[#6B7280]">{registration.pilTemplate}</p>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="bg-[#6366F1] text-white px-6 py-3 rounded-lg hover:bg-[#5B5BD6] transition-colors"
-          >
-            Close
-          </button>
         </div>
       ) : registration && ['PENDING', 'GENERATING_METADATA', 'UPLOADING_METADATA', 'REGISTERING_IP'].includes(registration.status) ? (
         <div className="text-center py-12">
