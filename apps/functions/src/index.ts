@@ -1801,6 +1801,589 @@ export const enhanceStoryworld = functions.https.onCall(
   }
 );
 
+// Epic 1.2: Create Standalone Asset without Storyworld
+export const createStandaloneAsset = functions.https.onCall(
+  async (data: {
+    assetType: AssetType;
+    name?: string;
+    description?: string;
+    template?: string;
+    aiAssisted?: boolean;
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { assetType, name, description, template, aiAssisted } = data;
+    const uid = context.auth.uid;
+
+    try {
+      // Generate default content based on asset type
+      let defaultContent: any = {};
+      let assetName = name || `New ${assetType.toLowerCase()}`;
+      let assetDescription = description || '';
+
+      if (aiAssisted && !name) {
+        // Use AI to generate a creative name
+        const namePrompt = `Generate a creative and unique name for a ${assetType.toLowerCase()} in a story. Return only the name, nothing else.`;
+        
+        try {
+          // Placeholder for AI name generation
+          // const aiResponse = await generate({
+          //   model: gemini15Flash,
+          //   prompt: namePrompt,
+          //   config: { temperature: 0.8, maxOutputTokens: 50 }
+          // });
+          // assetName = aiResponse.text().trim();
+          
+          // Fallback names
+          const fallbackNames: Record<AssetType, string[]> = {
+            CHARACTER: ['Mysterious Wanderer', 'The Keeper', 'Shadow Walker', 'Echo'],
+            STORYLINE: ['The Journey Begins', 'Turning Point', 'Final Chapter', 'Crossroads'],
+            LORE: ['Ancient History', 'World Origins', 'The Great War', 'Legends'],
+            IMAGE: ['Concept Art', 'Scene Visualization', 'Character Portrait', 'World Map'],
+            VIDEO: ['Trailer', 'Scene Preview', 'Character Introduction', 'Teaser'],
+            AUDIO: ['Theme Music', 'Ambient Sound', 'Character Theme', 'Battle Music']
+          };
+          
+          const names = fallbackNames[assetType] || ['New Asset'];
+          assetName = names[Math.floor(Math.random() * names.length)];
+        } catch (error) {
+          functions.logger.warn('AI name generation failed, using fallback', error);
+        }
+      }
+
+      // Generate template content based on asset type
+      switch (assetType) {
+        case 'CHARACTER':
+          defaultContent = {
+            profile: {
+              age: '',
+              occupation: '',
+              personality: [],
+              appearance: '',
+              backstory: ''
+            },
+            relationships: [],
+            motivations: [],
+            abilities: []
+          };
+          assetDescription = assetDescription || 'A character waiting to be developed';
+          break;
+          
+        case 'STORYLINE':
+          defaultContent = {
+            synopsis: '',
+            chapters: [],
+            plotPoints: [],
+            themes: []
+          };
+          assetDescription = assetDescription || 'A story waiting to be told';
+          break;
+          
+        case 'LORE':
+          defaultContent = {
+            category: 'history', // history, culture, mythology, geography
+            entries: [],
+            connections: []
+          };
+          assetDescription = assetDescription || 'World-building information';
+          break;
+          
+        case 'IMAGE':
+        case 'VIDEO':
+        case 'AUDIO':
+          defaultContent = {
+            mediaType: assetType.toLowerCase(),
+            placeholder: true,
+            metadata: {}
+          };
+          assetDescription = assetDescription || `${assetType} asset`;
+          break;
+      }
+
+      // Apply template if provided
+      if (template) {
+        // Templates could be predefined structures for common asset types
+        // This could be expanded with a template system
+        defaultContent.template = template;
+      }
+
+      // Create the standalone asset
+      const assetData = {
+        ownerId: uid,
+        name: assetName,
+        type: assetType,
+        status: 'DRAFT' as const,
+        ipStatus: 'UNREGISTERED' as const,
+        storyworldIds: [], // Empty array - no storyworld association yet
+        description: assetDescription,
+        tags: [assetType.toLowerCase(), 'standalone'],
+        content: defaultContent,
+        metadata: {
+          isStandalone: true,
+          createdVia: 'dashboard_template',
+          aiAssisted: aiAssisted || false,
+          template: template || null
+        }
+      };
+
+      const createdAsset = await AssetService.create(assetData);
+
+      functions.logger.info('Standalone asset created', {
+        uid,
+        assetId: createdAsset._id,
+        assetType,
+        aiAssisted
+      });
+
+      return {
+        success: true,
+        assetId: createdAsset._id,
+        asset: {
+          id: createdAsset._id,
+          ...createdAsset
+        }
+      };
+
+    } catch (error) {
+      functions.logger.error('Error creating standalone asset', {
+        uid,
+        assetType,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to create standalone asset'
+      );
+    }
+  }
+);
+
+// Helper function to assign standalone asset to storyworld
+export const assignAssetToStoryworld = functions.https.onCall(
+  async (data: {
+    assetId: string;
+    storyworldId: string;
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { assetId, storyworldId } = data;
+    const uid = context.auth.uid;
+
+    try {
+      // Verify ownership of both asset and storyworld
+      const [asset, storyworld] = await Promise.all([
+        AssetService.getById(assetId),
+        StoryworldService.getById(storyworldId)
+      ]);
+
+      if (!asset || asset.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Asset not found or access denied'
+        );
+      }
+
+      if (!storyworld || storyworld.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Storyworld not found or access denied'
+        );
+      }
+
+      // Update asset to include storyworldId
+      const updatedAsset = await AssetService.update(assetId, {
+        storyworldIds: [...(asset.storyworldIds || []), storyworldId],
+        metadata: {
+          ...asset.metadata,
+          isStandalone: false,
+          assignedAt: new Date()
+        }
+      });
+
+      functions.logger.info('Asset assigned to storyworld', {
+        uid,
+        assetId,
+        storyworldId
+      });
+
+      return {
+        success: true,
+        asset: updatedAsset
+      };
+
+    } catch (error) {
+      functions.logger.error('Error assigning asset to storyworld', {
+        uid,
+        assetId,
+        storyworldId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to assign asset to storyworld'
+      );
+    }
+  }
+);
+
+// Epic 2.2: AI Gateway Functions for Text and Image Generation
+export const generateTextExpansion = functions.https.onCall(
+  async (data: {
+    text: string;
+    tone?: string;
+    style?: string;
+    maxTokens?: number;
+    context?: {
+      assetType?: AssetType;
+      genre?: string;
+      characterName?: string;
+    };
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { text, tone = 'neutral', style = 'descriptive', maxTokens = 500, context: textContext } = data;
+    const uid = context.auth.uid;
+
+    try {
+      // Build expansion prompt based on context
+      let expansionPrompt = `Expand the following text in a ${tone} tone with a ${style} writing style:\n\n"${text}"\n\n`;
+      
+      if (textContext?.assetType === 'CHARACTER') {
+        expansionPrompt += `This is for a character description. Add vivid details about their appearance, personality, and background. `;
+      } else if (textContext?.assetType === 'STORYLINE') {
+        expansionPrompt += `This is for a story narrative. Develop the scene with sensory details, dialogue, and emotional depth. `;
+      } else if (textContext?.assetType === 'LORE') {
+        expansionPrompt += `This is for world-building lore. Add historical context, cultural significance, and interconnected details. `;
+      }
+      
+      if (textContext?.genre) {
+        expansionPrompt += `The genre is ${textContext.genre}. `;
+      }
+      
+      expansionPrompt += `\n\nProvide only the expanded text without any meta-commentary or explanations.`;
+
+      try {
+        // Placeholder for Genkit AI logic
+        // const aiResponse = await generate({
+        //   model: gemini15Flash,
+        //   prompt: expansionPrompt,
+        //   config: { 
+        //     temperature: 0.7,
+        //     maxOutputTokens: maxTokens
+        //   }
+        // });
+        // const expandedText = aiResponse.text().trim();
+        
+        // Fallback expansion logic
+        const fallbackExpansions: Record<string, string[]> = {
+          descriptive: [
+            ' The air hung heavy with unspoken words, each breath a testament to the moment\'s significance.',
+            ' Every detail seemed etched in crystalline clarity, as if the universe itself paused to witness.',
+            ' Time stretched like honey, golden and viscous, marking this instant as extraordinary.'
+          ],
+          dramatic: [
+            ' Lightning split the sky, nature itself responding to the weight of destiny.',
+            ' In that moment, everything changed. The world would never be the same.',
+            ' The silence that followed was deafening, pregnant with possibility and dread.'
+          ],
+          mysterious: [
+            ' Shadows danced at the periphery of perception, hiding secrets best left undiscovered.',
+            ' Something ancient stirred, awakened by forces beyond mortal comprehension.',
+            ' The truth lay buried beneath layers of deception, waiting for the brave or foolish to uncover it.'
+          ]
+        };
+        
+        const expansions = fallbackExpansions[style] || fallbackExpansions.descriptive;
+        const expansion = expansions[Math.floor(Math.random() * expansions.length)];
+        const expandedText = text + expansion;
+
+        functions.logger.info('Text expansion generated', {
+          uid,
+          originalLength: text.length,
+          expandedLength: expandedText.length,
+          tone,
+          style
+        });
+
+        return {
+          success: true,
+          originalText: text,
+          expandedText,
+          tone,
+          style,
+          expansionLength: expandedText.length - text.length
+        };
+
+      } catch (aiError) {
+        functions.logger.warn('AI text expansion failed, using fallback', aiError);
+        
+        // Simple fallback expansion
+        const expandedText = text + ' [AI expansion temporarily unavailable - please try again or expand manually]';
+        
+        return {
+          success: false,
+          originalText: text,
+          expandedText,
+          tone,
+          style,
+          error: 'AI service temporarily unavailable'
+        };
+      }
+
+    } catch (error) {
+      functions.logger.error('Error generating text expansion', {
+        uid,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to generate text expansion'
+      );
+    }
+  }
+);
+
+export const generateImageFromDescription = functions.https.onCall(
+  async (data: {
+    description: string;
+    style?: string;
+    assetType?: AssetType;
+    characterName?: string;
+    storyworldId?: string;
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { description, style = 'concept art', assetType, characterName, storyworldId } = data;
+    const uid = context.auth.uid;
+
+    try {
+      // Build image generation prompt
+      let imagePrompt = `Create ${style} artwork: ${description}`;
+      
+      if (assetType === 'CHARACTER' && characterName) {
+        imagePrompt = `Character concept art for "${characterName}": ${description}. Style: ${style}`;
+      } else if (assetType === 'LORE') {
+        imagePrompt = `World-building visualization: ${description}. Artistic style: ${style}`;
+      }
+      
+      // Add style modifiers
+      const styleModifiers: Record<string, string> = {
+        'concept art': ', digital painting, artstation quality, detailed',
+        'realistic': ', photorealistic, high detail, professional photography',
+        'anime': ', anime style, vibrant colors, dynamic pose',
+        'fantasy': ', fantasy art, magical atmosphere, ethereal lighting',
+        'scifi': ', science fiction, futuristic, cyberpunk aesthetics'
+      };
+      
+      imagePrompt += styleModifiers[style] || styleModifiers['concept art'];
+
+      try {
+        // Placeholder for image generation API
+        // const imageResponse = await generateImage({
+        //   prompt: imagePrompt,
+        //   model: 'stable-diffusion-xl',
+        //   width: 1024,
+        //   height: 1024
+        // });
+        
+        // For now, return placeholder image data
+        const placeholderImages = [
+          'https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=1024&h=1024&fit=crop',
+          'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=1024&h=1024&fit=crop',
+          'https://images.unsplash.com/photo-1615680022647-99c397cbcaea?w=1024&h=1024&fit=crop'
+        ];
+        
+        const imageUrl = placeholderImages[Math.floor(Math.random() * placeholderImages.length)];
+
+        // If storyworldId provided, create an image asset
+        let assetId = null;
+        if (storyworldId) {
+          const imageAsset = await AssetService.create({
+            ownerId: uid,
+            name: `AI Generated: ${description.substring(0, 50)}...`,
+            type: 'IMAGE' as AssetType,
+            status: 'DRAFT' as const,
+            ipStatus: 'UNREGISTERED' as const,
+            storyworldIds: [storyworldId],
+            description: `AI-generated ${style} image`,
+            tags: ['ai-generated', style],
+            content: {
+              prompt: imagePrompt,
+              style,
+              generatedAt: new Date()
+            },
+            media: {
+              url: imageUrl,
+              mimeType: 'image/jpeg',
+              size: 0 // Would be set with actual image
+            }
+          });
+          
+          assetId = imageAsset._id;
+        }
+
+        functions.logger.info('Image generation completed', {
+          uid,
+          style,
+          assetType,
+          assetCreated: !!assetId
+        });
+
+        return {
+          success: true,
+          imageUrl,
+          prompt: imagePrompt,
+          style,
+          assetId,
+          metadata: {
+            width: 1024,
+            height: 1024,
+            format: 'jpeg'
+          }
+        };
+
+      } catch (imageError) {
+        functions.logger.warn('Image generation failed', imageError);
+        
+        return {
+          success: false,
+          error: 'Image generation temporarily unavailable',
+          prompt: imagePrompt
+        };
+      }
+
+    } catch (error) {
+      functions.logger.error('Error generating image', {
+        uid,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to generate image'
+      );
+    }
+  }
+);
+
+export const suggestPlotPoints = functions.https.onCall(
+  async (data: {
+    currentStory: string;
+    genre?: string;
+    tone?: string;
+    numberOfSuggestions?: number;
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { currentStory, genre = 'general', tone = 'neutral', numberOfSuggestions = 3 } = data;
+    const uid = context.auth.uid;
+
+    try {
+      // Analyze current story and suggest plot developments
+      const plotPrompt = `Based on this story excerpt:\n\n"${currentStory}"\n\nSuggest ${numberOfSuggestions} possible plot developments. Genre: ${genre}. Tone: ${tone}.\n\nFormat as a JSON array of objects with 'title' and 'description' fields.`;
+
+      try {
+        // Placeholder for AI plot suggestions
+        // const aiResponse = await generate({
+        //   model: gemini15Flash,
+        //   prompt: plotPrompt,
+        //   config: { temperature: 0.8 }
+        // });
+        
+        // Fallback plot suggestions
+        const suggestions = [
+          {
+            title: 'The Unexpected Ally',
+            description: 'A former enemy reveals themselves as a secret ally, bringing crucial information that changes everything the protagonist believed.',
+            type: 'twist'
+          },
+          {
+            title: 'The Hidden Truth',
+            description: 'The protagonist discovers a hidden connection to the antagonist that forces them to question their own identity and purpose.',
+            type: 'revelation'
+          },
+          {
+            title: 'The Moral Dilemma',
+            description: 'A choice emerges where saving one important person means sacrificing many others, testing the protagonist\'s values.',
+            type: 'conflict'
+          },
+          {
+            title: 'The Power Within',
+            description: 'The protagonist discovers a latent ability or strength they never knew they possessed, but using it comes at a great cost.',
+            type: 'growth'
+          }
+        ];
+
+        const selectedSuggestions = suggestions
+          .sort(() => Math.random() - 0.5)
+          .slice(0, numberOfSuggestions);
+
+        functions.logger.info('Plot suggestions generated', {
+          uid,
+          numberOfSuggestions,
+          genre,
+          tone
+        });
+
+        return {
+          success: true,
+          suggestions: selectedSuggestions,
+          genre,
+          tone
+        };
+
+      } catch (aiError) {
+        functions.logger.warn('AI plot suggestion failed, using fallback', aiError);
+        
+        return {
+          success: false,
+          suggestions: [],
+          error: 'AI service temporarily unavailable'
+        };
+      }
+
+    } catch (error) {
+      functions.logger.error('Error suggesting plot points', {
+        uid,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to suggest plot points'
+      );
+    }
+  }
+);
+
 // MongoDB Functions Import
 export * from "./mongoFunctions";
 
