@@ -106,7 +106,7 @@ export const TiptapCanvas = ({
       Placeholder.configure({
         placeholder: ({ node }) => {
           if (node.type.name === 'heading') {
-            return 'What's the title?';
+            return "What's the title?";
           }
           return "Type '/' for commands, or just start writing...";
         },

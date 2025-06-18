@@ -1,5 +1,5 @@
 import { getVertexAI, getGenerativeModel } from '@firebase/ai';
-import app from './firebase';
+import { app } from './firebase';
 
 // Initialize Firebase AI only on client side
 let vertexAI: any = null;
