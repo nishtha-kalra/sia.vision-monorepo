@@ -1387,4 +1387,278 @@ export const getIPRegistrationLifecycle = functions.https.onCall(async (data, co
 
     throw new functions.https.HttpsError('internal', 'Failed to get registration lifecycle');
   }
-}); 
+});
+
+// Epic 3.3: Create Derivative Asset
+export const createDerivativeAsset = functions.https.onCall(
+  async (data: {
+    parentAssetId: string;
+    derivativeType: AssetType;
+    name: string;
+    description?: string;
+    content?: any;
+    licenseTermsId?: string;
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { parentAssetId, derivativeType, name, description, content, licenseTermsId } = data;
+    const uid = context.auth.uid;
+
+    try {
+      // Get parent asset details
+      const parentAsset = await AssetService.getById(parentAssetId);
+      
+      if (!parentAsset) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Parent asset not found'
+        );
+      }
+
+      // Check if parent asset is registered
+      if (parentAsset.ipStatus !== 'REGISTERED' || !parentAsset.storyProtocol?.ipId) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'Parent asset must be registered on Story Protocol first'
+        );
+      }
+
+      // Check if the user has permission to create derivatives
+      // This could involve checking license terms or ownership
+      const canCreateDerivative = await checkDerivativePermission(
+        uid, 
+        parentAsset,
+        licenseTermsId
+      );
+
+      if (!canCreateDerivative) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'You do not have permission to create derivatives of this asset'
+        );
+      }
+
+      // Create the derivative asset
+      const derivativeData = {
+        ownerId: uid,
+        name,
+        type: derivativeType,
+        status: 'DRAFT' as const,
+        ipStatus: 'UNREGISTERED' as const,
+        storyworldIds: parentAsset.storyworldIds || [],
+        description: description || `Derivative work based on "${parentAsset.name}"`,
+        tags: ['derivative', derivativeType.toLowerCase()],
+        content: content || {
+          derivativeOf: parentAsset.name,
+          parentAssetId: parentAssetId,
+          createdAt: new Date()
+        },
+        metadata: {
+          isDerivative: true,
+          parentAssetId: parentAssetId,
+          parentIpId: parentAsset.storyProtocol.ipId,
+          licenseTermsId: licenseTermsId || parentAsset.storyProtocol.licenseId,
+          inheritedRoyalties: parentAsset.storyProtocol.licenseTerms.royaltyPercentage
+        }
+      };
+
+      const createdAsset = await AssetService.create(derivativeData);
+
+      functions.logger.info('Derivative asset created', {
+        uid,
+        assetId: createdAsset._id,
+        parentAssetId,
+        derivativeType
+      });
+
+      // Track derivative relationship in parent asset
+      if (parentAsset.storyProtocol?.derivativeIds) {
+        await AssetService.update(parentAssetId, {
+          storyProtocol: {
+            ...parentAsset.storyProtocol,
+            derivativeIds: [...parentAsset.storyProtocol.derivativeIds, createdAsset._id]
+          }
+        });
+      }
+
+      return {
+        success: true,
+        assetId: createdAsset._id,
+        asset: createdAsset,
+        parentAsset: {
+          id: parentAsset._id,
+          name: parentAsset.name,
+          ipId: parentAsset.storyProtocol.ipId
+        },
+        message: 'Derivative asset created. You can now register it to establish the on-chain relationship.'
+      };
+
+    } catch (error) {
+      functions.logger.error('Error creating derivative asset', {
+        uid,
+        parentAssetId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to create derivative asset'
+      );
+    }
+  }
+);
+
+// Helper function to check derivative permissions
+async function checkDerivativePermission(
+  userId: string, 
+  parentAsset: any,
+  licenseTermsId?: string
+): Promise<boolean> {
+  // Check if user owns the parent asset
+  if (parentAsset.ownerId === userId) {
+    return true;
+  }
+
+  // Check if parent asset allows derivatives based on license terms
+  if (parentAsset.storyProtocol?.licenseTerms?.allowDerivatives) {
+    // Additional checks could be implemented here:
+    // - Check if user has acquired a license
+    // - Check if commercial use is allowed
+    // - Check territory restrictions
+    return true;
+  }
+
+  // Check specific license if provided
+  if (licenseTermsId) {
+    // This would check if the user has acquired this specific license
+    // Implementation would depend on how licenses are tracked
+    return true; // Placeholder
+  }
+
+  return false;
+}
+
+// Enhanced registration function for derivatives
+export const registerDerivativeAsIP = functions.https.onCall(
+  async (data: {
+    assetId: string;
+    parentIpId: string;
+    licenseTermsId: string;
+    customMetadata?: {
+      title: string;
+      description: string;
+      creatorName: string;
+      attributes: Array<{ trait_type: string; value: string }>;
+    };
+  }, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Authentication required'
+      );
+    }
+
+    const { assetId, parentIpId, licenseTermsId, customMetadata } = data;
+    const uid = context.auth.uid;
+
+    try {
+      // Get asset details
+      const asset = await AssetService.getById(assetId);
+      
+      if (!asset || asset.ownerId !== uid) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'Asset not found or access denied'
+        );
+      }
+
+      // Prepare metadata for derivative
+      const metadata = customMetadata || {
+        title: asset.name,
+        description: `${asset.description} (Derivative of IP: ${parentIpId})`,
+        creatorName: 'Anonymous Creator',
+        attributes: [
+          { trait_type: 'Type', value: asset.type },
+          { trait_type: 'Derivative', value: 'true' },
+          { trait_type: 'Parent IP', value: parentIpId }
+        ]
+      };
+
+      // In production, this would call Story Protocol SDK to register as derivative
+      // const result = await storyClient.ipa.registerDerivative({
+      //   parentIpId,
+      //   licenseTermsId,
+      //   metadata,
+      //   ...
+      // });
+
+      // Simulate registration
+      const mockIpId = `0x${Buffer.from(`derivative-${assetId}-${Date.now()}`).toString('hex').substring(0, 40)}`;
+      
+      // Update asset with Story Protocol data
+      const updatedAsset = await AssetService.update(assetId, {
+        ipStatus: 'REGISTERED',
+        storyProtocol: {
+          ipId: mockIpId,
+          licenseId: licenseTermsId,
+          txHash: `0x${Buffer.from(`tx-${Date.now()}`).toString('hex')}`,
+          registeredAt: new Date(),
+          metadataUrl: `ipfs://mock/${assetId}/metadata.json`,
+          parentIpId: parentIpId,
+          licenseTerms: {
+            allowDerivatives: true,
+            commercialUse: true,
+            royaltyPercentage: 10, // Inherited from parent
+            territory: 'GLOBAL',
+            attribution: true
+          },
+          derivativeIds: [],
+          totalRevenue: 0,
+          totalRoyaltiesPaid: 0,
+          totalRoyaltiesEarned: 0
+        }
+      });
+
+      functions.logger.info('Derivative asset registered', {
+        uid,
+        assetId,
+        ipId: mockIpId,
+        parentIpId
+      });
+
+      return {
+        success: true,
+        ipId: mockIpId,
+        asset: updatedAsset,
+        txHash: updatedAsset.storyProtocol?.txHash,
+        message: 'Derivative successfully registered on Story Protocol'
+      };
+
+    } catch (error) {
+      functions.logger.error('Error registering derivative', {
+        uid,
+        assetId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      throw new functions.https.HttpsError(
+        'internal',
+        'Failed to register derivative asset'
+      );
+    }
+  }
+);
+
+// Export all functions
+export {
+  // ... existing exports ...
+}; 

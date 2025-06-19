@@ -446,6 +446,112 @@ export const useFirebaseFunctions = () => {
     return result.data as StoryworldEnhancementResponse;
   }, []);
 
+  // Epic 1.2: Standalone Asset Creation
+  const createStandaloneAsset = useCallback(async (data: {
+    assetType: AssetType;
+    name?: string;
+    description?: string;
+    template?: string;
+    aiAssisted?: boolean;
+  }): Promise<{
+    success: boolean;
+    assetId: string;
+    asset: Asset;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'createStandaloneAsset');
+    const result = await fn(data);
+    return result.data as {
+      success: boolean;
+      assetId: string;
+      asset: Asset;
+    };
+  }, []);
+
+  const assignAssetToStoryworld = useCallback(async (data: {
+    assetId: string;
+    storyworldId: string;
+  }): Promise<{
+    success: boolean;
+    asset: Asset;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'assignAssetToStoryworld');
+    const result = await fn(data);
+    return result.data as {
+      success: boolean;
+      asset: Asset;
+    };
+  }, []);
+
+  // Epic 2.2: AI Gateway Functions
+  const generateTextExpansion = useCallback(async (data: {
+    text: string;
+    tone?: string;
+    style?: string;
+    maxTokens?: number;
+    context?: {
+      assetType?: AssetType;
+      genre?: string;
+      characterName?: string;
+    };
+  }): Promise<{
+    success: boolean;
+    originalText: string;
+    expandedText: string;
+    tone: string;
+    style: string;
+    expansionLength?: number;
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'generateTextExpansion');
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
+  const generateImageFromDescription = useCallback(async (data: {
+    description: string;
+    style?: string;
+    assetType?: AssetType;
+    characterName?: string;
+    storyworldId?: string;
+  }): Promise<{
+    success: boolean;
+    imageUrl?: string;
+    prompt: string;
+    style?: string;
+    assetId?: string | null;
+    metadata?: {
+      width: number;
+      height: number;
+      format: string;
+    };
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'generateImageFromDescription');
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
+  const suggestPlotPoints = useCallback(async (data: {
+    currentStory: string;
+    genre?: string;
+    tone?: string;
+    numberOfSuggestions?: number;
+  }): Promise<{
+    success: boolean;
+    suggestions: Array<{
+      title: string;
+      description: string;
+      type: string;
+    }>;
+    genre?: string;
+    tone?: string;
+    error?: string;
+  }> => {
+    const fn = httpsCallable(validateFunctions(), 'suggestPlotPoints');
+    const result = await fn(data);
+    return result.data as any;
+  }, []);
+
   // Story Protocol Functions
   const getPILTemplates = useCallback(async (): Promise<{
     success: boolean;
@@ -534,6 +640,15 @@ export const useFirebaseFunctions = () => {
     processCreativePrompt,
     enhanceStoryworld,
     
+    // Standalone asset functions
+    createStandaloneAsset,
+    assignAssetToStoryworld,
+    
+    // AI Gateway functions
+    generateTextExpansion,
+    generateImageFromDescription,
+    suggestPlotPoints,
+    
     // Story Protocol functions
     getPILTemplates,
     registerAssetAsIP,
@@ -542,7 +657,7 @@ export const useFirebaseFunctions = () => {
     // State
     uploading,
     uploadProgress,
-    activeUploads,
+    activeUploads: activeUploads.size,
     clearUploadProgress,
   };
 }; 
