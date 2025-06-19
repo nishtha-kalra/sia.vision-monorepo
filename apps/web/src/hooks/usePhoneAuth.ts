@@ -83,7 +83,7 @@ export const usePhoneAuth = () => {
       }
 
       // Create new RecaptchaVerifier with better error handling
-      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      const verifier = new RecaptchaVerifier('recaptcha-container', {
         size: 'invisible',
         callback: (response: any) => {
           // reCAPTCHA solved
@@ -104,7 +104,7 @@ export const usePhoneAuth = () => {
             error: 'Verification failed. Please try again.'
           }));
         }
-      });
+      }, auth);
 
       // Store references
       (window as any).recaptchaVerifier = verifier;
